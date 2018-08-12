@@ -141,7 +141,7 @@ class GLTF2USD:
             if 'skin' in node:
                 skel_root = UsdSkel.Root.Define(self.stage, '{0}/{1}'.format(xform_path, 'skeleton_root_{}'.format(node_index)))
                 usd_parent_node = skel_root
-                
+         
             self._convert_mesh_to_xform(self.gltf_loader.json_data['meshes'][node['mesh']], usd_parent_node, node_index)
         
         if 'children' in node:
@@ -163,10 +163,13 @@ class GLTF2USD:
         if 'primitives' in mesh:
             for i, mesh_primitive in enumerate(mesh['primitives']):
                 mesh_primitive_name = 'mesh_primitive{}'.format(i)
-                self._convert_primitive_to_mesh(name=mesh_primitive_name, primitive=mesh_primitive, usd_parent_node=usd_parent_node, node_index=node_index)
+                double_sided = False
+                if 'material' in mesh_primitive and 'doubleSided' in self.gltf_loader.json_data['materials'][mesh_primitive['material']]:
+                    double_sided = self.gltf_loader.json_data['materials'][mesh_primitive['material']]['doubleSided']
+                self._convert_primitive_to_mesh(name=mesh_primitive_name, primitive=mesh_primitive, usd_parent_node=usd_parent_node, node_index=node_index, double_sided = double_sided)
 
 
-    def _convert_primitive_to_mesh(self, name, primitive, usd_parent_node, node_index):
+    def _convert_primitive_to_mesh(self, name, primitive, usd_parent_node, node_index, double_sided):
         """
         Converts a glTF mesh primitive to a USD mesh
         
@@ -175,11 +178,15 @@ class GLTF2USD:
             primitive {dict} -- glTF primitive
             usd_parent_node {str} -- USD parent xform
             node_index {int} -- glTF node index
+            double_sided {bool} -- specifies if the primitive is double sided
         """
         parent_path = usd_parent_node.GetPath()
         usd_node = self.stage.GetPrimAtPath(parent_path)
         mesh = UsdGeom.Mesh.Define(self.stage, '{0}/{1}'.format(parent_path, name))
         mesh.CreateSubdivisionSchemeAttr().Set('none')
+
+        if double_sided:
+            mesh.CreateDoubleSidedAttr().Set(double_sided)
 
         if 'material' in primitive:
             usd_material = self.usd_materials[primitive['material']]
