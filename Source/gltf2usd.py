@@ -58,6 +58,7 @@ class GLTF2USD:
             self.stage = Usd.Stage.CreateNew(usd_file)
             self.gltf_usd_nodemap = {}
             self.gltf_usdskel_nodemap = {}
+            self._usd_mesh_skin_map = {}
 
             self.convert()
 
@@ -138,18 +139,20 @@ class GLTF2USD:
           
         if 'mesh' in node:
             usd_parent_node = xformPrim
-            if 'skin' in node:
+            skin_index = node['skin'] if 'skin' in node else None
+            if skin_index:
                 skel_root = UsdSkel.Root.Define(self.stage, '{0}/{1}'.format(xform_path, 'skeleton_root_{}'.format(node_index)))
                 usd_parent_node = skel_root
+                
          
-            self._convert_mesh_to_xform(self.gltf_loader.json_data['meshes'][node['mesh']], usd_parent_node, node_index)
+            self._convert_mesh_to_xform(self.gltf_loader.json_data['meshes'][node['mesh']], usd_parent_node, node_index, skin_index )
         
         if 'children' in node:
             for child_index in node['children']:
                 self._convert_node_to_xform(self.gltf_loader.json_data['nodes'][child_index], child_index, xform_path + '/node{}'.format(child_index))
 
 
-    def _convert_mesh_to_xform(self, mesh, usd_parent_node, node_index):
+    def _convert_mesh_to_xform(self, mesh, usd_parent_node, node_index, skin_index=None):
         """
         Converts a glTF mesh to a USD Xform.  
         Each primitive becomes a submesh of the Xform.
@@ -166,10 +169,10 @@ class GLTF2USD:
                 double_sided = False
                 if 'material' in mesh_primitive and 'doubleSided' in self.gltf_loader.json_data['materials'][mesh_primitive['material']]:
                     double_sided = self.gltf_loader.json_data['materials'][mesh_primitive['material']]['doubleSided']
-                self._convert_primitive_to_mesh(name=mesh_primitive_name, primitive=mesh_primitive, usd_parent_node=usd_parent_node, node_index=node_index, double_sided = double_sided)
+                self._convert_primitive_to_mesh(name=mesh_primitive_name, primitive=mesh_primitive, usd_parent_node=usd_parent_node, node_index=node_index, double_sided = double_sided, skin_index=skin_index)
 
 
-    def _convert_primitive_to_mesh(self, name, primitive, usd_parent_node, node_index, double_sided):
+    def _convert_primitive_to_mesh(self, name, primitive, usd_parent_node, node_index, double_sided, skin_index):
         """
         Converts a glTF mesh primitive to a USD mesh
         
@@ -228,6 +231,8 @@ class GLTF2USD:
                 if attribute == 'JOINTS_0':
                     gltf_node = self.gltf_loader.json_data['nodes'][node_index]
                     self._convert_skin_to_usd(gltf_node, node_index, usd_parent_node, mesh)
+                    if skin_index != None:
+                        self._usd_mesh_skin_map[skin_index] = mesh
 
 
         if 'indices' in primitive:
@@ -528,7 +533,23 @@ class GLTF2USD:
 
         return joint_node.hierarchy_name[0]
 
-                                                
+    def _get_gltf_root_joint_name(self, gltf_skin):
+        if 'skeleton' in gltf_skin:
+            node = self.node_hierarchy[gltf_skin['skeleton']]
+            return node.name
+
+        else:
+            if 'joints' in gltf_skin:
+                joint_index = gltf_skin['joints'][0]
+                joint_node = self.node_hierarchy[joint_index]
+
+                while joint_node.parent != None:
+                    joint_node = joint_node.parent
+                        
+                return joint_node.name
+            else:
+                return None
+                                             
     def _convert_skin_animations_to_usd(self):
         """Converts the skin animations to USD skeleton animations
         """
@@ -537,7 +558,8 @@ class GLTF2USD:
             total_min_time = 0
             
             if 'skins' in self.gltf_loader.json_data:
-                for skin in self.gltf_loader.json_data['skins']:
+                for i, skin in enumerate(self.gltf_loader.json_data['skins']):
+                    usd_mesh = self._usd_mesh_skin_map[i]
                     joint_map = {}
                     if 'joints' in skin:
                         joints = []
@@ -602,7 +624,7 @@ class GLTF2USD:
                         usd_skel_root_path = usd_skeleton.GetPath().GetParentPath()
                         usd_skel_root = self.stage.GetPrimAtPath(usd_skel_root_path)
 
-                        UsdSkel.BindingAPI(usd_skel_root).CreateAnimationSourceRel().AddTarget(usd_animation.GetPath())
+                        UsdSkel.BindingAPI(usd_mesh).CreateAnimationSourceRel().AddTarget(usd_animation.GetPath())
             
             self.stage.SetStartTimeCode(total_min_time)
             self.stage.SetEndTimeCode(total_max_time)         
@@ -675,14 +697,14 @@ class GLTF2USD:
 
         bind_matrices = []
         rest_matrices = []
-        skeleton = UsdSkel.Skeleton.Define(self.stage, '{0}/skel{1}'.format(parent_path, node_index))
         
         skeleton_root = self.stage.GetPrimAtPath(parent_path)
         skel_binding_api = UsdSkel.BindingAPI(usd_mesh)
-        skel_binding_api_skel_root = UsdSkel.BindingAPI(skeleton_root)
-        skel_binding_api_skel_root.CreateSkeletonRel().AddTarget(skeleton.GetPath())
+        skel_binding_api_skel_root = UsdSkel.BindingAPI(usd_mesh)   
         bind_matrices = self._compute_bind_transforms(gltf_skin)
-
+        gltf_root_node_name = self._get_gltf_root_joint_name(gltf_skin)
+        skeleton = UsdSkel.Skeleton.Define(self.stage, '{0}/{1}'.format(parent_path, gltf_root_node_name))
+        skel_binding_api_skel_root.CreateSkeletonRel().AddTarget(skeleton.GetPath())
         if len(bind_matrices) > 0:
             skeleton.CreateBindTransformsAttr().Set(bind_matrices)
 
@@ -873,7 +895,7 @@ class GLTF2USD:
         (transform, convert_func) = self._get_keyframe_usdskel_conversion_func(gltf_target_path, usd_animation)
 
         for i, keyframe in enumerate(input_keyframes):
-            convert_func(transform, int(round(keyframe * fps)), output_keyframes[i])
+            convert_func(transform, int(round(keyframe * self.fps)), output_keyframes[i])
 
         return (max_time, min_time)
             
