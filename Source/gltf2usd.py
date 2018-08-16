@@ -288,7 +288,9 @@ class GLTF2USD:
             for image in self.gltf_loader.json_data['images']:
                 image_path = os.path.join(self.gltf_loader.root_dir, image['uri'])
                 image_name = os.path.join(self.output_dir, ntpath.basename(image_path))
-                shutil.copyfile(image_path, image_name)
+
+                if self.gltf_loader.root_dir is not self.output_dir:
+                    shutil.copyfile(image_path, image_name)
                 self.images.append(ntpath.basename(image_name))
 
     def _convert_materials_to_preview_surface(self):
