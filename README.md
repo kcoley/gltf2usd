@@ -25,7 +25,7 @@ This tool currently only works on glTF 2.0 files with external textures, based o
 - There are several edge cases that have not been fully tested yet
 
 # Dependencies:
-- You will need to initially have `USD` installed on your system 
+- You will need to initially have [USD v18.09](https://github.com/PixarAnimationStudios/USD) installed on your system 
 and have the Python modules built
 - Pillow (Python module for image manipulation)
 
