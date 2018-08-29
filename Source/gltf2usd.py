@@ -16,8 +16,13 @@ from pxr import Usd, UsdGeom, Sdf, UsdShade, Gf, UsdSkel, Vt
 
 AnimationsMap = collections.namedtuple('AnimationMap', ('path', 'sampler'))
 Node = collections.namedtuple('Node', ('index', 'parent', 'children', 'name', 'hierarchy_name'))
-JointData = collections.namedtuple('JointData', ('skeleton_joint', 'joint_name', 'joint_index'))
 KeyFrame = collections.namedtuple('KeyFrame', ('input', 'output'))
+
+class JointData:
+    def __init__(self, skeleton_joint, joint_name, joint_index):
+        self.skeleton_joint = skeleton_joint
+        self.joint_name = joint_name
+        self.joint_index = joint_index
 
 class GLTF2USD:
     """
@@ -641,9 +646,7 @@ class GLTF2USD:
             
             self.stage.SetStartTimeCode(total_min_time)
             self.stage.SetEndTimeCode(total_max_time)         
-
-                                   
-                    
+    
     def _store_joint_animations(self, usd_animation, joint_data, joint_map):
         rotation_anim = usd_animation.CreateRotationsAttr()
         joint_count = len(joint_data)
@@ -675,9 +678,11 @@ class GLTF2USD:
         else:
             rest_poses = []
             for joint in joint_data:
-                rotation = joint.skeleton_joint.GetRestTransformsAttr().Get()[joint.joint_index].ExtractRotation()
-
-                rest_poses.append(rotation)
+                rotation = joint.skeleton_joint['skeleton'].GetRestTransformsAttr().Get()[joint.joint_index].ExtractRotation().GetQuaternion()
+                quat = Gf.Quatf()
+                quat.SetReal(rotation.GetReal())
+                quat.SetImaginary(Gf.Vec3f(rotation.GetImaginary()))
+                rest_poses.append(quat)
             rotation_anim.Set(rest_poses)
 
         translation_anim = usd_animation.CreateTranslationsAttr()
