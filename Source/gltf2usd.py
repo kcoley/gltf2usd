@@ -518,7 +518,7 @@ class GLTF2USD:
         Returns:
             str -- USD friendly name
         """
-        return re.sub(r'\.|\b \b|-', '_', name) # replace '.' and ' ' and '-' with '_'
+        return re.sub(r'\.|\b \b|-\b|:', '_', name) # replace '.' and ' ' and '-' and ':' with '_' 
 
 
     def _get_joint_name(self, joint_node):
@@ -729,7 +729,7 @@ class GLTF2USD:
             rest_matrices.append(self._compute_rest_matrix(joint_node))
             
             node = self.node_hierarchy[joint_index]
-            name = self._get_joint_name(node)
+            name = self._convert_to_usd_friendly_node_name(self._get_joint_name(node))
               
             joint_paths.append(Sdf.Path(name))
 
@@ -844,7 +844,7 @@ class GLTF2USD:
             for node_index, node in enumerate(self.gltf_loader.json_data['nodes']):
                 new_node = None
                 if node_index not in node_hierarchy:
-                    node_name = node['name'] if 'name' in node else 'joint_{}'.format(node_index)
+                    node_name = self._convert_to_usd_friendly_node_name(node['name']) if 'name' in node else 'joint_{}'.format(node_index)
                     new_node = Node(index=node_index, parent=None, children=[], name=node_name.format(node_index), hierarchy_name=[])
                     node_hierarchy[node_index] = new_node
                 else:
@@ -855,7 +855,7 @@ class GLTF2USD:
                         new_node.children.append(child_index)
                         if child_index not in node_hierarchy:
                             gltf_child_node = self.gltf_loader.json_data['nodes'][child_index]
-                            child_node_name = gltf_child_node['name'] if 'name' in gltf_child_node else 'joint_{}'.format(child_index)
+                            child_node_name = self._convert_to_usd_friendly_node_name(gltf_child_node['name']) if 'name' in gltf_child_node else 'joint_{}'.format(child_index)
                             child_node = Node(index=child_index, parent=node_index, children=[], name=child_node_name, hierarchy_name=[])
                             node_hierarchy[child_index] = child_node
 
