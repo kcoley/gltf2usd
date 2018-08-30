@@ -664,10 +664,13 @@ class GLTF2USD:
                 scale = [1,1,1]
                 skeleton_joint = joint.skeleton_joint['skeleton']
                 joint_index = joint.joint_index
-                scale[0] = skeleton_joint.GetRestTransformsAttr().Get()[joint_index].GetRow3(0).GetLength()
-                scale[1] = skeleton_joint.GetRestTransformsAttr().Get()[joint_index].GetRow3(1).GetLength()
-                scale[2] = skeleton_joint.GetRestTransformsAttr().Get()[joint_index].GetRow3(2).GetLength()
-
+                joint_rest_transforms = skeleton_joint.GetRestTransformsAttr().Get()
+                try:
+                    scale[0] = joint_rest_transforms[joint_index].GetRow3(0).GetLength()
+                    scale[1] = joint_rest_transforms[joint_index].GetRow3(1).GetLength()
+                    scale[2] = joint_rest_transforms[joint_index].GetRow3(2).GetLength()
+                except IndexError:
+                    return
                 rest_poses.append(scale)
             scale_anim.Set(rest_poses)
 
