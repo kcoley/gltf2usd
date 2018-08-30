@@ -697,7 +697,6 @@ class GLTF2USD:
                     translation_anim.Set(time=entry, value=translation_anim_data[entry])             
         else:
             rest_poses = []
-            rest_transforms = joint.skeleton_joint['skeleton'].GetRestTransformsAttr().Get()
             for joint in joint_data:
                 translation = joint.skeleton_joint['skeleton'].GetRestTransformsAttr().Get()[joint.joint_index].ExtractTranslation()
                 rest_poses.append(translation)
