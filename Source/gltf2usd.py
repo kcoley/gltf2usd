@@ -130,26 +130,29 @@ class GLTF2USD:
             node_index {int} -- glTF node index
             xform_name {str} -- USD xform name
         """
-        xform_path = '{}'.format(xform_name)
-        xformPrim = UsdGeom.Xform.Define(self.stage, xform_path)
+        xformPrim = UsdGeom.Xform.Define(self.stage, xform_name)
         self.gltf_usd_nodemap[node_index] = xformPrim
 
         xform_matrix = self._compute_rest_matrix(node)    
         xformPrim.AddTransformOp().Set(xform_matrix)
           
         if 'mesh' in node:
-            usd_parent_node = xformPrim
             skin_index = node['skin'] if 'skin' in node else None
-            if skin_index:
-                skel_root = UsdSkel.Root.Define(self.stage, '{0}/{1}'.format(xform_path, 'skeleton_root_{}'.format(node_index)))
-                usd_parent_node = skel_root
-                
+            
+            # each mesh gets it's own SkelRoot
+            skeleton_root = 'skeleton_root_{}'.format(node_index)
+            skeleton_path = '{0}/{1}'.format(xform_name, skeleton_root)
+            skel_root = UsdSkel.Root.Define(self.stage, skeleton_path)
+            usd_parent_node = skel_root
          
-            self._convert_mesh_to_xform(self.gltf_loader.json_data['meshes'][node['mesh']], usd_parent_node, node_index, skin_index )
+            mesh = self.gltf_loader.json_data['meshes'][node['mesh']]
+            self._convert_mesh_to_xform(mesh, usd_parent_node, node_index, skin_index)
         
         if 'children' in node:
             for child_index in node['children']:
-                self._convert_node_to_xform(self.gltf_loader.json_data['nodes'][child_index], child_index, xform_path + '/node{}'.format(child_index))
+                child_node = self.gltf_loader.json_data['nodes'][child_index]
+                child_xform_name = '{}/node{}'.format(xform_name, child_index)
+                self._convert_node_to_xform(child_node, child_index, child_xform_name)
 
 
     def _convert_mesh_to_xform(self, mesh, usd_parent_node, node_index, skin_index=None):
@@ -233,7 +236,48 @@ class GLTF2USD:
                     self._convert_skin_to_usd(gltf_node, node_index, usd_parent_node, mesh)
                     if skin_index != None:
                         self._usd_mesh_skin_map[skin_index] = mesh
+        if 'targets' in primitive:
+            skinBinding = UsdSkel.BindingAPI.Apply(mesh.GetPrim())
 
+            skeleton = UsdSkel.Skeleton.Define(self.stage, '{0}/skel'.format(parent_path))
+
+            # Create an animation for this mesh to hold the blendshapes
+            skelAnim = UsdSkel.Animation.Define(self.stage, '{0}/skel/anim'.format(parent_path))
+
+            # link the skeleton animation to skelAnim
+            skinBinding.CreateAnimationSourceRel().AddTarget(skelAnim.GetPath())
+
+            # link the skeleton to skeleton
+            skinBinding.CreateSkeletonRel().AddTarget(skeleton.GetPath())
+
+            # Fetch the names and accessors of the blendshapes
+            targets = primitive['targets']
+            positions = list(map(lambda target: target['POSITION'], targets))
+            accessors = list(map(lambda idx: self.gltf_loader.json_data['accessors'][idx], positions))
+
+            # Set blendshape names on the animation
+            # QUESTION: what happens if there's no name? I don't think blendshapes can be anonymous.
+            names = list(map(lambda a: a['name'], accessors))
+            skelAnim.CreateBlendShapesAttr().Set(names)
+            skinBinding.CreateBlendShapesAttr(names)
+
+            # Set the starting weights of each blendshape to the weights defined in the glTF primitive
+            gltf_node = self.gltf_loader.json_data['nodes'][node_index]
+            gltf_mesh = self.gltf_loader.json_data['meshes'][gltf_node['mesh']]
+            weights = gltf_mesh['weights']
+            skelAnim.CreateBlendShapeWeightsAttr().Set(weights)
+            blend_shape_targets = skinBinding.CreateBlendShapeTargetsRel()
+
+            # Define offsets for each blendshape, and add them as skel:blendShapes and skel:blendShapeTargets
+            for accessor in accessors:
+                name = accessor['name']
+                offsets = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
+                blend_shape_name = '{0}/{1}'.format(mesh.GetPrim().GetPrimPath(), name)
+
+                # define blendshapes in the mesh
+                blend_shape = UsdSkel.BlendShape.Define(self.stage, blend_shape_name)
+                blend_shape.CreateOffsetsAttr(offsets)
+                blend_shape_targets.AddTarget(name)
 
         if 'indices' in primitive:
             #TODO: Need to support glTF primitive modes.  Currently only Triangle mode is supported
@@ -244,7 +288,7 @@ class GLTF2USD:
             mesh.CreateFaceVertexCountsAttr(face_count)
             mesh.CreateFaceVertexIndicesAttr(indices)
         else:
-            position_accessor =  self.gltf_loader.json_data['accessors'][primitive['attributes']['POSITION']]
+            position_accessor = self.gltf_loader.json_data['accessors'][primitive['attributes']['POSITION']]
             count = position_accessor['count']
             num_faces = count/3
             indices = range(0, count)
@@ -617,11 +661,8 @@ class GLTF2USD:
                         usd_animation = UsdSkel.Animation.Define(self.stage, '{0}/{1}'.format(usd_skeleton.GetPath(), 'anim'))
                 
                         animated_joints = [x.joint_name for x in joint_values ]
-                        
-
                         usd_animation.CreateJointsAttr().Set(animated_joints)
                         self._store_joint_animations(usd_animation, joint_values, joint_map)
-
 
                         usd_skel_root_path = usd_skeleton.GetPath().GetParentPath()
                         usd_skel_root = self.stage.GetPrimAtPath(usd_skel_root_path)
@@ -630,8 +671,6 @@ class GLTF2USD:
             
             self.stage.SetStartTimeCode(total_min_time)
             self.stage.SetEndTimeCode(total_max_time)         
-
-                                   
                     
     def _store_joint_animations(self, usd_animation, joint_data, joint_map):
         rotation_anim = usd_animation.CreateRotationsAttr()
@@ -682,7 +721,6 @@ class GLTF2USD:
                 translation = joint.skeleton_joint['skeleton'].GetRestTransformsAttr().Get()[joint.joint_index].ExtractTranslation()
                 rest_poses.append(translation)
             translation_anim.Set(rest_poses)
-
 
     def _convert_skin_to_usd(self, gltf_node, node_index, usd_parent_node, usd_mesh):
         """Converts a glTF skin to a UsdSkel
@@ -819,8 +857,6 @@ class GLTF2USD:
 
         return UsdSkel.MakeTransform(usd_translation, usd_rotation, usd_scale)
 
-
-
     def _build_node_hierarchy(self):
         """Constructs a node hierarchy from the glTF nodes
         
@@ -870,13 +906,59 @@ class GLTF2USD:
         input_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
         accessor = self.gltf_loader.json_data['accessors'][sampler['output']]
         output_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
-        (transform, convert_func) = self._get_keyframe_conversion_func(usd_node, animation_channel.path)
+        (transform, convert_func) = self._get_keyframe_conversion_func(usd_node, animation_channel)
 
         for i, keyframe in enumerate(input_keyframes):
-            convert_func(transform, int(round(keyframe * self.fps)), output_keyframes[i])
+            # NOTE: weights might need the whole accessor and index? Hard to set both weights twice per tick!
+            # TODO: maybe send the whole accessor since it has the name?
+            convert_func(transform, int(round(keyframe * self.fps)), output_keyframes, output_keyframes[i])
 
         MinMaxTime = collections.namedtuple('MinMaxTime', ('max', 'min'))
         return MinMaxTime(max=max_time, min=min_time)
+
+    def _get_keyframe_conversion_func(self, usd_node, animation_channel):
+        """Convert glTF key frames to USD animation key frames
+        
+        Arguments:
+            usd_node {UsdPrim} -- USD node to apply animations to
+            animation_channel {obj} -- glTF animation
+        
+        Raises:
+            Exception -- [description]
+        
+        Returns:
+            [func] -- USD animation conversion function
+        """
+
+        path = animation_channel.path
+
+        def convert_translation(transform, time, _, value):
+            transform.Set(time=time, value=(value[0], value[1], value[2]))
+
+        def convert_scale(transform, time, _, value):
+            transform.Set(time=time, value=(value[0], value[1], value[2]))
+
+        def convert_rotation(transform, time, _, value):
+            transform.Set(time=time, value=Gf.Quatf(value[3], value[0], value[1], value[2]))
+        
+        def convert_weights(transform, time, output, value):
+            skel_anim = transform.GetChild("skeleton_root_0/anim")
+            transform.BlendShapeWeightsAttr(time=time, value=value)
+
+        if path == 'translation':
+            return (usd_node.AddTranslateOp(opSuffix='translate'), convert_translation)
+        elif path == 'rotation':
+            return (usd_node.AddOrientOp(opSuffix='rotate'), convert_rotation)
+        elif path == 'scale':
+            return (usd_node.AddScaleOp(opSuffix='scale'), convert_scale)
+        elif path == 'weights':
+            # fetch the skeleton here and pass it in as the "usd_node" in the tuple. That'll be the thing
+            # that the convert_weights function gets on each frame so set it here
+            # TODO: ignore non-position accessors? It seems like it picks the right one but not sure.
+            return (usd_node, lambda x, y, z, zz: x)
+        else:
+            raise Exception('Unsupported animation target path! {}'.format(path))
+
 
 
     def _create_usd_skeleton_animation(self, usd_skeleton, sampler, gltf_target_path, joint_name, gltf_node):
@@ -901,39 +983,6 @@ class GLTF2USD:
 
         return (max_time, min_time)
             
-
-
-    def _get_keyframe_conversion_func(self, usd_node, target_path):
-        """Convert glTF key frames to USD animation key frames
-        
-        Arguments:
-            usd_node {UsdPrim} -- USD node to apply animations to
-            target_path {str} -- glTF animation target path
-        
-        Raises:
-            Exception -- [description]
-        
-        Returns:
-            [func] -- USD animation conversion function
-        """
-
-        def convert_translation(transform, time, value):
-            transform.Set(time=time, value=(value[0], value[1], value[2]))
-
-        def convert_scale(transform, time, value):
-            transform.Set(time=time, value=(value[0], value[1], value[2]))
-
-        def convert_rotation(transform, time, value):
-            transform.Set(time=time, value=Gf.Quatf(value[3], value[0], value[1], value[2]))
-
-        if target_path == 'translation':
-            return (usd_node.AddTranslateOp(opSuffix='translate'), convert_translation)
-        elif target_path == 'rotation':
-            return (usd_node.AddOrientOp(opSuffix='rotate'), convert_rotation)
-        elif target_path == 'scale':
-            return (usd_node.AddScaleOp(opSuffix='scale'), convert_scale)
-        else:
-            raise Exception('Unsupported animation target path! {}'.format(target_path))
 
     def _get_keyframe_usdskel_conversion_func(self, target_path, usd_animation):
         """Convert glTF keyframes to USD skeleton animations
@@ -1036,10 +1085,10 @@ class GLTF2USD:
 
             return {'metallic': metallic_texture_name, 'roughness': roughness_texture_name}
 
-    '''
-    Converts a glTF texture to USD
-    '''
     def _convert_texture_to_usd(self, primvar_st0_output, primvar_st1_output, pbr_mat, gltf_texture, gltf_texture_name, color_components, scale_factor, fallback_factor, material_path, fallback_type):
+        '''
+        Converts a glTF texture to USD
+        '''
         image_name = gltf_texture if (isinstance(gltf_texture, basestring)) else self.images[gltf_texture['index']]
         image_name = os.path.join(self.output_dir, image_name)
         texture_index = int(gltf_texture['index'])
