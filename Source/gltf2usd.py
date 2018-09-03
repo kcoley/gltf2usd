@@ -524,7 +524,7 @@ class GLTF2USD:
         Returns:
             str -- USD friendly name
         """
-        return re.sub(r'\.|\b \b|-\b|:', '_', name) # replace '.' and ' ' and '-' and ':' with '_'
+        return re.sub(r'\.|\b \b|-\b|:|/|\(|\)|[ \t]', '_', name) # replace '.',' ','-',':','/','\','(',')' and ':' with '_'
 
 
     def _get_joint_name(self, joint_node):
