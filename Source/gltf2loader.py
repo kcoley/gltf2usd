@@ -83,17 +83,20 @@ class GLTF2Loader:
 
     def __init__(self, gltf_file):
         """Initializes the glTF 2.0 loader
-        
+
         Arguments:
             gltf_file {str} -- Path to glTF file
         """
+        if not os.path.isfile(gltf_file):
+            raise Exception("file {} does not exist".format(gltf_file))
 
-        if os.path.isfile(gltf_file) and gltf_file.endswith('.gltf'):
-            self.root_dir = os.path.dirname(gltf_file)
-            with open(gltf_file) as f:
-                self.json_data = json.load(f)
-        else:
+        if not gltf_file.endswith('.gltf'):
             raise Exception('Can only accept .gltf files')
+
+        self.root_dir = os.path.dirname(gltf_file)
+        with open(gltf_file) as f:
+            self.json_data = json.load(f)
+
 
     def align(self, value, size):
         remainder = value % size
@@ -102,7 +105,7 @@ class GLTF2Loader:
     def get_data(self, buffer, accessor):
         bufferview = self.json_data['bufferViews'][accessor['bufferView']]
         accessor_type = AccessorType(accessor['type'])
-        
+
         with open(os.path.join(self.root_dir, buffer['uri']), 'rb') as buffer_fptr:
             if 'byteOffset' in bufferview:
                 buffer_fptr.seek(bufferview['byteOffset'], 1)
@@ -115,7 +118,7 @@ class GLTF2Loader:
 
             accessor_type_size = accessor_type_count(accessor['type'])
             accessor_component_type_size = accessor_component_type_bytesize(accessor_component_type)
-            
+
             bytestride = int(bufferview['byteStride']) if ('byteStride' in bufferview) else (accessor_type_size * accessor_component_type_size)
             offset = accessor['byteOffset'] if 'byteOffset' in accessor else 0
 
@@ -141,7 +144,7 @@ class GLTF2Loader:
                 for j in range(0, accessor_type_size):
                     x = offset + j * accessor_component_type_size
                     entries.append(struct.unpack(
-                        data_type, buffer_data[x:x + data_type_size])[0])   
+                        data_type, buffer_data[x:x + data_type_size])[0])
                 if len(entries) > 1:
                     data_arr.append(tuple(entries))
                 else:
