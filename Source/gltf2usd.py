@@ -1116,7 +1116,7 @@ def convert_to_usd(gltf_file, usd_file, fps, scale, verbose=False):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert glTF to USD')
     parser.add_argument('--gltf', '-g', action='store', dest='gltf_file', help='glTF file (in .gltf format)', required=True)
-    parser.add_argument('--fps', action='store', dest='fps', help='The frames per second for the animations', default=24)
+    parser.add_argument('--fps', action='store', dest='fps', help='The frames per second for the animations', type=float, default=24)
     parser.add_argument('--output', '-o', action='store', dest='usd_file', help='destination to store generated .usda file', required=True)
     parser.add_argument('--verbose', '-v', action='store_true', dest='verbose', help='Enable verbose mode')
     parser.add_argument('--scale', '-s', action='store', dest='scale', help='Scale the resulting USDA', type=int, default=100)
