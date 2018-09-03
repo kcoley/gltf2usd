@@ -6,7 +6,7 @@ The tool is a **proof-of-concept**, to determine format conversion details, whic
 
 This tool currently only works on glTF 2.0 files with external textures, based on the core glTF 2.0 specification (no extensions).  
 
-# Supported Features
+## Supported Features
 - glTF nodes are mapped to USD `Xform`
 - glTF `PbrMetallicRoughnessMaterial` is mapped to `USDPreviewSurface`
 - glTF Skeletal animation is mapped to `UsdSkel`
@@ -14,23 +14,31 @@ This tool currently only works on glTF 2.0 files with external textures, based o
 - Currently supports `.gltf` conversion to `.usd`, `.usda` and `.usdc`
 
 
-# Currently not implemented:
+## Currently not implemented:
 - `.glb` files
 - glTF files with base64 data
 - `PbrSpecularGlossiness` or other glTF extensions
 - Primitive modes (other than triangles)
 
-# Note:
+## Note:
 - The root node of the generated USD file is, by default, scaled by 100 to convert from glTF's meters to USD's centimeters.  This scale is purely to be able to see the glTF models when using ARKit, or otherwise, they are too small.
 - There are several edge cases that have not been fully tested yet
 
-# Dependencies:
+## Dependencies:
+
 - You will need to initially have [USD v18.09](https://github.com/PixarAnimationStudios/USD) installed on your system
 and have the Python modules built
+    - Linux users will need to build the tools themselves, or use [AnimalLogic's USD Docker Container](https://github.com/AnimalLogic/docker-usd) (recommended for non-CentOS users)
+    - macOS users can use Apple's [Prebuilt USD Toolkit](https://developer.apple.com/go/?id=python-usd-library). Make sure you add the USD dir to your `PYTHONPATH`
+
+### Python dependencies
+You can install the following python dependencies using `pip install -r requirements.txt`:
+
 - Pillow (Python module for image manipulation)
+- enum34 (Python module for enums in Python 2.7)
 
 
-# Help Menu:
+## Help Menu:
 ```Shell
 python gltf2usd.py -h
 usage: gltf2usd.py [-h] --gltf GLTF_FILE [--fps FPS] --output USD_FILE
@@ -49,7 +57,7 @@ optional arguments:
   --verbose, -v         Enable verbose mode
 ```
 
-# Sample usage:
+## Sample usage:
 ```Shell
 python gltf2usd.py -g ../path_to_read_glTF_file/file.gltf -o path_to_write_usd_file/file.usda
 ```
