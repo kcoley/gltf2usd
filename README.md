@@ -21,11 +21,11 @@ This tool currently only works on glTF 2.0 files with external textures, based o
 - Primitive modes (other than triangles)
 
 # Note:
-- The root node of the generated USD file is scaled by 100 to convert from glTF's meters to USD's centimeters.  This scale is purely to be able to see the glTF models when using ARKit, or otherwise, they are too small.
+- The root node of the generated USD file is, by default, scaled by 100 to convert from glTF's meters to USD's centimeters.  This scale is purely to be able to see the glTF models when using ARKit, or otherwise, they are too small.
 - There are several edge cases that have not been fully tested yet
 
 # Dependencies:
-- You will need to initially have [USD v18.09](https://github.com/PixarAnimationStudios/USD) installed on your system 
+- You will need to initially have [USD v18.09](https://github.com/PixarAnimationStudios/USD) installed on your system
 and have the Python modules built
 - Pillow (Python module for image manipulation)
 
@@ -34,7 +34,7 @@ and have the Python modules built
 ```Shell
 python gltf2usd.py -h
 usage: gltf2usd.py [-h] --gltf GLTF_FILE [--fps FPS] --output USD_FILE
-                   [--verbose]
+                   [--scale] [--verbose]
 
 Convert glTF to USD
 
@@ -45,6 +45,7 @@ optional arguments:
   --fps FPS             The frames per second for the animations (defaults to 24 fps)
   --output USD_FILE, -o USD_FILE
                         destination to store generated .usda file
+  --scale SCALE, -s     Scale the resulting USDA model
   --verbose, -v         Enable verbose mode
 ```
 

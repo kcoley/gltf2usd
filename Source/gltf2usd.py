@@ -5,6 +5,7 @@ import logging
 import ntpath
 import numpy
 import os
+import re
 import shutil
 
 from gltf2loader import GLTF2Loader, PrimitiveMode, TextureWrap, MinFilter, MagFilter
@@ -15,8 +16,13 @@ from pxr import Usd, UsdGeom, Sdf, UsdShade, Gf, UsdSkel, Vt
 
 AnimationsMap = collections.namedtuple('AnimationMap', ('path', 'sampler'))
 Node = collections.namedtuple('Node', ('index', 'parent', 'children', 'name', 'hierarchy_name'))
-JointData = collections.namedtuple('JointData', ('skeleton_joint', 'joint_name', 'joint_index'))
 KeyFrame = collections.namedtuple('KeyFrame', ('input', 'output'))
+
+class JointData:
+    def __init__(self, skeleton_joint, joint_name, joint_index):
+        self.skeleton_joint = skeleton_joint
+        self.joint_name = joint_name
+        self.joint_index = joint_index
 
 class GLTF2USD:
     """
@@ -30,7 +36,7 @@ class GLTF2USD:
         TextureWrap.REPEAT: 'repeat',
     }
 
-    def __init__(self, gltf_file, usd_file, fps, verbose=False):
+    def __init__(self, gltf_file, usd_file, fps, scale, verbose=False):
         """Initializes the glTF to USD converter
 
         Arguments:
@@ -52,6 +58,7 @@ class GLTF2USD:
             self.gltf_loader = GLTF2Loader(gltf_file)
             self.buffer = self.gltf_loader.json_data['buffers'][0]
             self.verbose = verbose
+            self.scale = scale
 
             self.output_dir = os.path.dirname(usd_file)
 
@@ -81,11 +88,9 @@ class GLTF2USD:
         to convert from meters (glTF) to centimeters (USD).
         """
         parent_transform = UsdGeom.Xform.Define(self.stage, '/root')
-        parent_transform.AddScaleOp().Set((100, 100, 100))
+        parent_transform.AddScaleOp().Set((self.scale, self.scale, self.scale))
 
         self.node_hierarchy = self._build_node_hierarchy()
-
-        parent_less = [x for x in self.node_hierarchy if self.node_hierarchy[x].parent == None]
 
         child_nodes = self._get_child_nodes()
         if 'scenes' in self.gltf_loader.json_data:
@@ -554,6 +559,18 @@ class GLTF2USD:
 
         self._convert_skin_animations_to_usd()
 
+    def _convert_to_usd_friendly_node_name(self, name):
+        """Format a glTF name to make it more USD friendly
+
+        Arguments:
+            name {str} -- glTF node name
+
+        Returns:
+            str -- USD friendly name
+        """
+        return re.sub(r'\.|\b \b|-\b|:', '_', name) # replace '.' and ' ' and '-' and ':' with '_'
+
+
     def _get_joint_name(self, joint_node):
         """Gets the joint name based on the glTF node hierarchy
 
@@ -582,7 +599,7 @@ class GLTF2USD:
     def _get_gltf_root_joint_name(self, gltf_skin):
         if 'skeleton' in gltf_skin:
             node = self.node_hierarchy[gltf_skin['skeleton']]
-            return node.name
+            return self._convert_to_usd_friendly_node_name(node.name)
 
         else:
             if 'joints' in gltf_skin:
@@ -590,9 +607,9 @@ class GLTF2USD:
                 joint_node = self.node_hierarchy[joint_index]
 
                 while joint_node.parent != None:
-                    joint_node = joint_node.parent
+                    joint_node = self.node_hierarchy[joint_node.parent]
 
-                return joint_node.name
+                return self._convert_to_usd_friendly_node_name(joint_node.name)
             else:
                 return None
 
@@ -618,7 +635,7 @@ class GLTF2USD:
 
                                 joints.append(skeleton_joint)
                                 joint_node = self.node_hierarchy[joint_index]
-                                joint_name = self._get_joint_name(joint_node)
+                                joint_name = self._convert_to_usd_friendly_node_name(self._get_joint_name(joint_node))
 
                                 joint_data = JointData(skeleton_joint=skeleton_joint, joint_name=joint_name, joint_index=i)
                                 joint_values.append(joint_data)
@@ -688,10 +705,13 @@ class GLTF2USD:
                 scale = [1,1,1]
                 skeleton_joint = joint.skeleton_joint['skeleton']
                 joint_index = joint.joint_index
-                scale[0] = skeleton_joint.GetRestTransformsAttr().Get()[joint_index].GetRow3(0).GetLength()
-                scale[1] = skeleton_joint.GetRestTransformsAttr().Get()[joint_index].GetRow3(1).GetLength()
-                scale[2] = skeleton_joint.GetRestTransformsAttr().Get()[joint_index].GetRow3(2).GetLength()
-
+                joint_rest_transforms = skeleton_joint.GetRestTransformsAttr().Get()
+                try:
+                    scale[0] = joint_rest_transforms[joint_index].GetRow3(0).GetLength()
+                    scale[1] = joint_rest_transforms[joint_index].GetRow3(1).GetLength()
+                    scale[2] = joint_rest_transforms[joint_index].GetRow3(2).GetLength()
+                except IndexError:
+                    return
                 rest_poses.append(scale)
             scale_anim.Set(rest_poses)
 
@@ -703,9 +723,11 @@ class GLTF2USD:
         else:
             rest_poses = []
             for joint in joint_data:
-                rotation = joint.skeleton_joint.GetRestTransformsAttr().Get()[joint.joint_index].ExtractRotation()
-
-                rest_poses.append(rotation)
+                rotation = joint.skeleton_joint['skeleton'].GetRestTransformsAttr().Get()[joint.joint_index].ExtractRotation().GetQuaternion()
+                quat = Gf.Quatf()
+                quat.SetReal(rotation.GetReal())
+                quat.SetImaginary(Gf.Vec3f(rotation.GetImaginary()))
+                rest_poses.append(quat)
             rotation_anim.Set(rest_poses)
 
         translation_anim = usd_animation.CreateTranslationsAttr()
@@ -756,7 +778,7 @@ class GLTF2USD:
             rest_matrices.append(self._compute_rest_matrix(joint_node))
 
             node = self.node_hierarchy[joint_index]
-            name = self._get_joint_name(node)
+            name = self._convert_to_usd_friendly_node_name(self._get_joint_name(node))
 
             joint_paths.append(Sdf.Path(name))
 
@@ -869,7 +891,7 @@ class GLTF2USD:
             for node_index, node in enumerate(self.gltf_loader.json_data['nodes']):
                 new_node = None
                 if node_index not in node_hierarchy:
-                    node_name = node['name'] if 'name' in node else 'joint_{}'.format(node_index)
+                    node_name = self._convert_to_usd_friendly_node_name(node['name']) if 'name' in node else 'joint_{}'.format(node_index)
                     new_node = Node(index=node_index, parent=None, children=[], name=node_name.format(node_index), hierarchy_name=[])
                     node_hierarchy[node_index] = new_node
                 else:
@@ -880,7 +902,7 @@ class GLTF2USD:
                         new_node.children.append(child_index)
                         if child_index not in node_hierarchy:
                             gltf_child_node = self.gltf_loader.json_data['nodes'][child_index]
-                            child_node_name = gltf_child_node['name'] if 'name' in gltf_child_node else 'joint_{}'.format(child_index)
+                            child_node_name = self._convert_to_usd_friendly_node_name(gltf_child_node['name']) if 'name' in gltf_child_node else 'joint_{}'.format(child_index)
                             child_node = Node(index=child_index, parent=node_index, children=[], name=child_node_name, hierarchy_name=[])
                             node_hierarchy[child_index] = child_node
 
@@ -1132,7 +1154,7 @@ class GLTF2USD:
             self.convert_nodes_to_xform()
 
 
-def convert_to_usd(gltf_file, usd_file, fps, verbose=False):
+def convert_to_usd(gltf_file, usd_file, fps, scale, verbose=False):
     """Converts a glTF file to USD
 
     Arguments:
@@ -1143,7 +1165,7 @@ def convert_to_usd(gltf_file, usd_file, fps, verbose=False):
         verbose {bool} -- [description] (default: {False})
     """
 
-    GLTF2USD(gltf_file=gltf_file, usd_file=usd_file, fps=fps, verbose=verbose)
+    GLTF2USD(gltf_file=gltf_file, usd_file=usd_file, fps=fps, scale=scale, verbose=verbose)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert glTF to USD')
@@ -1151,7 +1173,8 @@ if __name__ == '__main__':
     parser.add_argument('--fps', action='store', dest='fps', help='The frames per second for the animations', type=float, default=24.0)
     parser.add_argument('--output', '-o', action='store', dest='usd_file', help='destination to store generated .usda file', required=True)
     parser.add_argument('--verbose', '-v', action='store_true', dest='verbose', help='Enable verbose mode')
+    parser.add_argument('--scale', '-s', action='store', dest='scale', help='Scale the resulting USDA', type=int, default=100)
     args = parser.parse_args()
 
     if args.gltf_file:
-        convert_to_usd(args.gltf_file, args.usd_file, args.fps, args.verbose)
+        convert_to_usd(args.gltf_file, args.usd_file, args.fps, args.scale, args.verbose)
