@@ -128,7 +128,7 @@ class GLTF2USD:
                             self.animations_map[target['node']] = [animation_map]
 
 
-    def _convert_node_to_xform(self, node, node_index, xform_name, skel_root=None):
+    def _convert_node_to_xform(self, node, node_index, xform_name):
         """Converts a glTF node to a USD transform node.
 
         Arguments:
@@ -146,23 +146,22 @@ class GLTF2USD:
             skin_index = node['skin'] if 'skin' in node else None
 
             # each mesh gets it's own SkelRoot
-            if skel_root is None:
-                skeleton_path = '{0}/{1}'.format(xform_name, 'skeleton_root')
-                skel_root = UsdSkel.Root.Define(self.stage, skeleton_path)
-                usd_parent_node = skel_root
+            skeleton_path = '{0}/{1}'.format(xform_name, 'skeleton_root')
+            skel_root = UsdSkel.Root.Define(self.stage, skeleton_path)
+            usd_parent_node = skel_root
 
             mesh = self.gltf_loader.json_data['meshes'][node['mesh']]
-            self._convert_mesh_to_xform(mesh, usd_parent_node, node_index, skin_index, skel_root)
+            self._convert_mesh_to_xform(mesh, usd_parent_node, node_index, skin_index)
 
         if 'children' in node:
             for child_index in node['children']:
                 child_node = self.gltf_loader.json_data['nodes'][child_index]
                 child_name = child_node['name'] if 'name' in node else 'node{}'.format(child_index)
                 child_xform_name = '{0}/{1}'.format(xform_name, child_name)
-                self._convert_node_to_xform(child_node, child_index, child_xform_name, skel_root)
+                self._convert_node_to_xform(child_node, child_index, child_xform_name)
 
 
-    def _convert_mesh_to_xform(self, mesh, usd_parent_node, node_index, skin_index=None, skel_root=None):
+    def _convert_mesh_to_xform(self, mesh, usd_parent_node, node_index, skin_index=None):
         """
         Converts a glTF mesh to a USD Xform.
         Each primitive becomes a submesh of the Xform.
@@ -185,11 +184,10 @@ class GLTF2USD:
                     usd_parent_node=usd_parent_node,
                     node_index=node_index,
                     double_sided = double_sided,
-                    skin_index=skin_index,
-                    skel_root=skel_root)
+                    skin_index=skin_index)
 
 
-    def _convert_primitive_to_mesh(self, name, primitive, usd_parent_node, node_index, double_sided, skin_index, skel_root):
+    def _convert_primitive_to_mesh(self, name, primitive, usd_parent_node, node_index, double_sided, skin_index):
         """
         Converts a glTF mesh primitive to a USD mesh
 
@@ -937,19 +935,18 @@ class GLTF2USD:
         """
 
         sampler = animation_channel.sampler
-        accessor = self.gltf_loader.json_data['accessors'][sampler['input']]
-        max_time = int(round(accessor['max'][0] * self.fps))
-        min_time = int(round(accessor['min'][0] * self.fps))
-        input_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
-        accessor = self.gltf_loader.json_data['accessors'][sampler['output']]
-        print("accessor: {}".format(accessor))
-        output_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
+        input_accessor = self.gltf_loader.json_data['accessors'][sampler['input']]
+        max_time = int(round(input_accessor['max'][0] * self.fps))
+        min_time = int(round(input_accessor['min'][0] * self.fps))
+        input_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=input_accessor)
+        output_accessor = self.gltf_loader.json_data['accessors'][sampler['output']]
+        output_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=output_accessor)
+
+        num_values = output_accessor['count'] / input_accessor['count']
         (transform, convert_func) = self._get_keyframe_conversion_func(usd_node, animation_channel)
 
         for i, keyframe in enumerate(input_keyframes):
-            # NOTE: weights might need the whole accessor and index? Hard to set both weights twice per tick!
-            # TODO: maybe send the whole accessor since it has the name?
-            convert_func(transform, int(round(keyframe * self.fps)), output_keyframes, i)
+            convert_func(transform, int(round(keyframe * self.fps)), output_keyframes, i, num_values)
 
         MinMaxTime = collections.namedtuple('MinMaxTime', ('max', 'min'))
         return MinMaxTime(max=max_time, min=min_time)
@@ -970,21 +967,24 @@ class GLTF2USD:
 
         path = animation_channel.path
 
-        def convert_translation(transform, time, frame, i):
-            value = frame[i]
+        def convert_translation(transform, time, output, i, _):
+            value = output[i]
             transform.Set(time=time, value=(value[0], value[1], value[2]))
 
-        def convert_scale(transform, time, frame, i):
-            value = frame[i]
+        def convert_scale(transform, time, output, i, _):
+            value = output[i]
             transform.Set(time=time, value=(value[0], value[1], value[2]))
 
-        def convert_rotation(transform, time, frame, i):
-            value = frame[i]
+        def convert_rotation(transform, time, output, i, _):
+            value = output[i]
             transform.Set(time=time, value=Gf.Quatf(value[3], value[0], value[1], value[2]))
 
-        def convert_weights(transform, time, frame, i):
-            value = frame[i][i]
-            transform.Set(time=time, value=[value])
+        def convert_weights(transform, time, output, i, values_per_step):
+            start = i * values_per_step
+            end = i * values_per_step + values_per_step
+            values = output[i * values_per_step:i * values_per_step + values_per_step]
+            value = list(map(lambda x: round(x, 5) + 0, values))
+            transform.Set(time=time, value=value)
 
         if path == 'translation':
             return (usd_node.AddTranslateOp(opSuffix='translate'), convert_translation)
@@ -993,11 +993,9 @@ class GLTF2USD:
         elif path == 'scale':
             return (usd_node.AddScaleOp(opSuffix='scale'), convert_scale)
         elif path == 'weights':
-            return (usd_node, lambda x,y,z,zz: x)
-
-            # prim = usd_node.GetPrim().GetChild("skeleton_root").GetChild("skel").GetChild("anim")
-            # anim_attr = prim.GetAttribute('blendShapeWeights')
-            # return (anim_attr, convert_weights)
+            prim = usd_node.GetPrim().GetChild("skeleton_root").GetChild("skel").GetChild("anim")
+            anim_attr = prim.GetAttribute('blendShapeWeights')
+            return (anim_attr, convert_weights)
         else:
             raise Exception('Unsupported animation target path! {}'.format(path))
 
