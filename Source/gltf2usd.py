@@ -56,6 +56,10 @@ class GLTF2USD:
             self.fps = fps
 
             self.gltf_loader = GLTF2Loader(gltf_file)
+
+            if len(self.gltf_loader.json_data['buffers']) > 1:
+                raise Exception("Multiple glTF buffers are not supported yet")
+
             self.buffer = self.gltf_loader.json_data['buffers'][0]
             self.verbose = verbose
             self.scale = scale
@@ -241,7 +245,14 @@ class GLTF2USD:
 
 
         if 'indices' in primitive:
-            #TODO: Need to support glTF primitive modes.  Currently only Triangle mode is supported
+            #TODO: Need to support glTF primitive modes.  Currently only Triangle mode (4) is supported
+            mode  = 4
+            if 'mode' in primitive:
+                mode = primitive['mode']
+
+            if mode is not 4:
+                raise "Unsupported primitive mode: {}".format(mode)
+
             indices = self.gltf_loader.get_data(buffer=self.buffer, accessor=self.gltf_loader.json_data['accessors'][primitive['indices']])
 
             num_faces = len(indices)/3
@@ -291,6 +302,9 @@ class GLTF2USD:
         if 'images' in self.gltf_loader.json_data:
             self.images = []
             for image in self.gltf_loader.json_data['images']:
+                if image['uri'].startswith('data:image'):
+                    raise Exception('Loading base64 textures is not yet supported')
+
                 image_path = os.path.join(self.gltf_loader.root_dir, image['uri'])
                 image_name = os.path.join(self.output_dir, ntpath.basename(image_path))
 
