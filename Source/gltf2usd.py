@@ -56,10 +56,6 @@ class GLTF2USD:
             self.fps = fps
 
             self.gltf_loader = GLTF2Loader(gltf_file)
-
-            if len(self.gltf_loader.json_data['buffers']) > 1:
-                raise Exception("Multiple glTF buffers are not supported yet")
-
             self.buffer = self.gltf_loader.json_data['buffers'][0]
             self.verbose = verbose
             self.scale = scale
@@ -302,9 +298,6 @@ class GLTF2USD:
         if 'images' in self.gltf_loader.json_data:
             self.images = []
             for image in self.gltf_loader.json_data['images']:
-                if image['uri'].startswith('data:image'):
-                    raise Exception('Loading base64 textures is not yet supported')
-
                 image_path = os.path.join(self.gltf_loader.root_dir, image['uri'])
                 image_name = os.path.join(self.output_dir, ntpath.basename(image_path))
 
@@ -475,7 +468,7 @@ class GLTF2USD:
                         primvar_st1_output=primvar_st1_output
                     )
 
-                
+
                 if pbr_metallic_roughness and 'baseColorTexture' in pbr_metallic_roughness:
                     base_color_factor = pbr_metallic_roughness['baseColorFactor'] if 'baseColorFactor' in pbr_metallic_roughness else (1,1,1,1)
                     fallback_base_color = (base_color_factor[0], base_color_factor[1], base_color_factor[2])
