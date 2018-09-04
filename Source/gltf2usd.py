@@ -401,6 +401,7 @@ class GLTF2USD:
                 primvar_st1_output = primvar_st1.CreateOutput('result', Sdf.ValueTypeNames.Float2)
 
                 pbr_metallic_roughness = None
+                pbr_specular_glossiness = None
 
                 if 'pbrMetallicRoughness' in material:
                     pbr_metallic_roughness = material['pbrMetallicRoughness']
@@ -414,6 +415,17 @@ class GLTF2USD:
                         metallic_factor = pbr_metallic_roughness['metallicFactor']
                         metallic = pbr_mat.CreateInput('metallic', Sdf.ValueTypeNames.Float)
                         metallic.Set(pbr_metallic_roughness['metallicFactor'])
+                elif 'extensions' in material and 'KHR_materials_pbrSpecularGlossiness' in material['extensions']:
+                    specular_workflow.Set(True)
+                    pbr_specular_glossiness = material['extensions']['KHR_materials_pbrSpecularGlossiness']
+
+                    specular_factor = pbr_specular_glossiness['specularFactor'] if ('specularFactor' in pbr_specular_glossiness) else (1,1,1)
+                    pbr_mat.CreateInput("specularColor", Sdf.ValueTypeNames.Color3f).Set((specular_factor[0], specular_factor[1], specular_factor[2]))
+                    diffuse_factor = pbr_specular_glossiness['diffuseFactor'] if ('diffuseFactor' in pbr_specular_glossiness) else (1,1,1,1)
+                    diffuse_color = pbr_mat.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f)
+                    diffuse_color.Set((diffuse_factor[0], diffuse_factor[1], diffuse_factor[2]))
+                    opacity = pbr_mat.CreateInput("opacity", Sdf.ValueTypeNames.Float)
+                    opacity.Set(diffuse_factor[3])
 
                 if 'occlusionTexture' in material:
                     occlusion_texture = material['occlusionTexture']
@@ -484,8 +496,31 @@ class GLTF2USD:
                         primvar_st1_output=primvar_st1_output
                     )
 
+                if pbr_specular_glossiness and 'diffuseTexture' in pbr_specular_glossiness:
+                    base_color_factor = pbr_specular_glossiness['diffuseFactor'] if 'diffuseFactor' in pbr_specular_glossiness else (1,1,1,1)
+                    fallback_base_color = (base_color_factor[0], base_color_factor[1], base_color_factor[2])
+                    scale_base_color_factor = base_color_factor
+                    base_color_components = {
+                        'rgb':
+                        {'sdf_type' : Sdf.ValueTypeNames.Color3f, 'name': 'diffuseColor'}
+                    }
+
+                    self._convert_texture_to_usd(
+                        pbr_mat=pbr_mat,
+                        gltf_texture=pbr_specular_glossiness['diffuseTexture'],
+                        gltf_texture_name='diffuseTexture',
+                        color_components=base_color_components,
+                        scale_factor=scale_base_color_factor,
+                        fallback_factor=fallback_base_color,
+                        material_path=material_path,
+                        fallback_type=Sdf.ValueTypeNames.Color3f,
+                        primvar_st0_output=primvar_st0_output,
+                        primvar_st1_output=primvar_st1_output
+                    )
+
+                
                 if pbr_metallic_roughness and 'baseColorTexture' in pbr_metallic_roughness:
-                    base_color_factor = pbr_metallic_roughness['baseColorFactor'] if 'baseColorFactor' in pbr_metallic_roughness else [1,1,1,1]
+                    base_color_factor = pbr_metallic_roughness['baseColorFactor'] if 'baseColorFactor' in pbr_metallic_roughness else (1,1,1,1)
                     fallback_base_color = (base_color_factor[0], base_color_factor[1], base_color_factor[2])
                     scale_base_color_factor = base_color_factor
                     base_color_components = {
@@ -552,6 +587,53 @@ class GLTF2USD:
                         primvar_st1_output=primvar_st1_output
                     )
 
+                if pbr_specular_glossiness and 'specularGlossinessTexture' in pbr_specular_glossiness:
+                    specular_glossiness_texture_file = os.path.join(self.gltf_loader.root_dir, self.gltf_loader.json_data['images'][pbr_specular_glossiness['specularGlossinessTexture']['index']]['uri'])
+                    result = self.create_specular_glossiness_to_grayscale_images(specular_glossiness_texture_file)
+                    specular_factor = tuple(pbr_specular_glossiness['specularFactor']) if 'specularFactor' in pbr_specular_glossiness else (1,1,1)
+                    fallback_specular = specular_factor
+                    scale_specular = [specular_factor[0], specular_factor[1], specular_factor[2], 1]
+                    specular_color_components = {
+                        'rgb':
+                        {'sdf_type' : Sdf.ValueTypeNames.Color3f, 'name': 'specularColor'}
+                    }
+
+                    roughness_factor = 1 - pbr_specular_glossiness['glossiness'] if 'glossiness' in pbr_specular_glossiness else 0.0
+                    fallback_roughness = roughness_factor
+                    scale_roughness = [-1] * 4
+                    glossiness_color_components = {
+                        'a':
+                        {'sdf_type': Sdf.ValueTypeNames.Float, 'name': 'roughness'},
+                    }
+
+
+                    self._convert_texture_to_usd(
+                        pbr_mat=pbr_mat,
+                        gltf_texture=pbr_specular_glossiness['specularGlossinessTexture'],
+                        gltf_texture_name='specularTexture',
+                        color_components=specular_color_components,
+                        scale_factor=scale_specular,
+                        fallback_factor=fallback_specular,
+                        material_path=material_path,
+                        fallback_type=Sdf.ValueTypeNames.Color3f,
+                        primvar_st0_output=primvar_st0_output,
+                        primvar_st1_output=primvar_st1_output
+                    )
+
+                    self._convert_texture_to_usd(
+                        pbr_mat=pbr_mat,
+                        gltf_texture=pbr_specular_glossiness['specularGlossinessTexture'],
+                        gltf_texture_name='glossinessTexture',
+                        color_components=glossiness_color_components,
+                        scale_factor=[-1]*4,
+                        fallback_factor=fallback_roughness,
+                        material_path=material_path,
+                        fallback_type=Sdf.ValueTypeNames.Float,
+                        primvar_st0_output=primvar_st0_output,
+                        primvar_st1_output=primvar_st1_output,
+                        bias = (1.0, 1.0, 1.0, 1.0)
+                    )
+
     def _convert_animations_to_usd(self):
         if hasattr(self, 'animations_map'):
             total_max_time = 0
@@ -581,7 +663,9 @@ class GLTF2USD:
         Returns:
             str -- USD friendly name
         """
-        return re.sub(r'\.|\b \b|-\b|:', '_', name) # replace '.' and ' ' and '-' and ':' with '_'
+        #return name
+        name = re.sub(r'\.|\b \b|-\b|:|\(|\)|[ \t]', '_', name) # replace '.',' ','-',':','/','\','(',')' and ':' with '_'
+        return re.sub('//', '/', name)
 
 
     def _get_joint_name(self, joint_node):
@@ -1097,6 +1181,12 @@ class GLTF2USD:
                     elif color_component == 'b':
                         texture_name = 'Metallic_{}'.format(image_base_name)
                         metallic.save(os.path.join(self.output_dir, texture_name))
+                elif img.mode == 'RGBA':
+                    if color_component == 'a':
+                        texture_name = 'Glossiness_{}'.format(image_base_name)
+                        img.getchannel('A').save(os.path.join(self.output_dir, texture_name))
+                    else:
+                        raise Exception('unrecognized image type!: {}'.format(img.mode))
                 elif img.mode == 'L':
                     #already single channel
                     pass
@@ -1125,10 +1215,29 @@ class GLTF2USD:
 
             return {'metallic': metallic_texture_name, 'roughness': roughness_texture_name}
 
-    def _convert_texture_to_usd(self, primvar_st0_output, primvar_st1_output, pbr_mat, gltf_texture, gltf_texture_name, color_components, scale_factor, fallback_factor, material_path, fallback_type):
-        '''
-        Converts a glTF texture to USD
-        '''
+    def create_specular_glossiness_to_grayscale_images(self, image):
+        image_base_name = ntpath.basename(image)
+        specular_texture_name = os.path.join(self.output_dir, 'Specular_{}'.format(image_base_name))
+        glossiness_texture_name = os.path.join(self.output_dir, 'Glossiness_{}'.format(image_base_name))
+
+        img = Image.open(image)
+
+        if img.mode == 'P':
+            #convert paletted image to RGBA
+            img = img.convert('RGBA')
+        if img.mode == 'RGBA':
+            #get specular
+            img.convert('RGB').save(specular_texture_name)
+            #get glossiness
+            img.getchannel('A').save(glossiness_texture_name)
+            #channels[3].save(glossiness_texture_name)
+
+            return {'specular': specular_texture_name, 'glossiness': glossiness_texture_name}
+
+    '''
+    Converts a glTF texture to USD
+    '''
+    def _convert_texture_to_usd(self, primvar_st0_output, primvar_st1_output, pbr_mat, gltf_texture, gltf_texture_name, color_components, scale_factor, fallback_factor, material_path, fallback_type, bias=None):
         image_name = gltf_texture if (isinstance(gltf_texture, basestring)) else self.images[gltf_texture['index']]
         image_name = os.path.join(self.output_dir, image_name)
         texture_index = int(gltf_texture['index'])
@@ -1139,6 +1248,8 @@ class GLTF2USD:
 
         texture_shader.CreateInput('wrapS', Sdf.ValueTypeNames.Token).Set(wrap_modes['wrapS'])
         texture_shader.CreateInput('wrapT', Sdf.ValueTypeNames.Token).Set(wrap_modes['wrapT'])
+        if bias:
+            texture_shader.CreateInput('bias', Sdf.ValueTypeNames.Float4).Set(bias)
 
         texture_name = self.unpack_textures_to_grayscale_images(image_name, color_components)
         file_asset = texture_shader.CreateInput('file', Sdf.ValueTypeNames.Asset)
@@ -1188,7 +1299,7 @@ if __name__ == '__main__':
     parser.add_argument('--fps', action='store', dest='fps', help='The frames per second for the animations', type=float, default=24.0)
     parser.add_argument('--output', '-o', action='store', dest='usd_file', help='destination to store generated .usda file', required=True)
     parser.add_argument('--verbose', '-v', action='store_true', dest='verbose', help='Enable verbose mode')
-    parser.add_argument('--scale', '-s', action='store', dest='scale', help='Scale the resulting USDA', type=int, default=100)
+    parser.add_argument('--scale', '-s', action='store', dest='scale', help='Scale the resulting USDA', type=float, default=100)
     args = parser.parse_args()
 
     if args.gltf_file:
