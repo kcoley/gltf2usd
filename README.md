@@ -9,6 +9,7 @@ This tool currently only works on glTF 2.0 files with external textures, based o
 # Supported Features
 - glTF nodes are mapped to USD `Xform`
 - glTF `PbrMetallicRoughnessMaterial` is mapped to `USDPreviewSurface`
+- glTF `PbrSpecularGlossiness` extension
 - glTF Skeletal animation is mapped to `UsdSkel`
 - glTF node animations are supported
 - Currently supports `.gltf` conversion to `.usd`, `.usda` and `.usdc`
@@ -17,7 +18,7 @@ This tool currently only works on glTF 2.0 files with external textures, based o
 # Currently not implemented:
 - `.glb` files
 - glTF files with base64 data
-- `PbrSpecularGlossiness` or other glTF extensions
+- glTF extensions
 - Primitive modes (other than triangles)
 
 # Note:
