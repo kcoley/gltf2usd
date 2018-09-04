@@ -100,7 +100,8 @@ class GLTF2USD:
                 node = self.gltf_loader.json_data['nodes'][node_index]
 
                 if node_index not in child_nodes:
-                    xform_name = '{parent_root}/node{index}'.format(parent_root=parent_transform.GetPath(), index=i)
+                    name = node['name'] if 'name' in node else 'node{}'.format(i)
+                    xform_name = '{0}/{1}'.format(parent_transform.GetPath(), name)
                     self._convert_node_to_xform(node, node_index, xform_name)
 
             self._convert_animations_to_usd()
@@ -127,7 +128,7 @@ class GLTF2USD:
                             self.animations_map[target['node']] = [animation_map]
 
 
-    def _convert_node_to_xform(self, node, node_index, xform_name):
+    def _convert_node_to_xform(self, node, node_index, xform_name, skel_root=None):
         """Converts a glTF node to a USD transform node.
 
         Arguments:
@@ -145,22 +146,23 @@ class GLTF2USD:
             skin_index = node['skin'] if 'skin' in node else None
 
             # each mesh gets it's own SkelRoot
-            skeleton_root = 'skeleton_root_{}'.format(node_index)
-            skeleton_path = '{0}/{1}'.format(xform_name, skeleton_root)
-            skel_root = UsdSkel.Root.Define(self.stage, skeleton_path)
-            usd_parent_node = skel_root
+            if skel_root is None:
+                skeleton_path = '{0}/{1}'.format(xform_name, 'skeleton_root')
+                skel_root = UsdSkel.Root.Define(self.stage, skeleton_path)
+                usd_parent_node = skel_root
 
             mesh = self.gltf_loader.json_data['meshes'][node['mesh']]
-            self._convert_mesh_to_xform(mesh, usd_parent_node, node_index, skin_index)
+            self._convert_mesh_to_xform(mesh, usd_parent_node, node_index, skin_index, skel_root)
 
         if 'children' in node:
             for child_index in node['children']:
                 child_node = self.gltf_loader.json_data['nodes'][child_index]
-                child_xform_name = '{}/node{}'.format(xform_name, child_index)
-                self._convert_node_to_xform(child_node, child_index, child_xform_name)
+                child_name = child_node['name'] if 'name' in node else 'node{}'.format(child_index)
+                child_xform_name = '{0}/{1}'.format(xform_name, child_name)
+                self._convert_node_to_xform(child_node, child_index, child_xform_name, skel_root)
 
 
-    def _convert_mesh_to_xform(self, mesh, usd_parent_node, node_index, skin_index=None):
+    def _convert_mesh_to_xform(self, mesh, usd_parent_node, node_index, skin_index=None, skel_root=None):
         """
         Converts a glTF mesh to a USD Xform.
         Each primitive becomes a submesh of the Xform.
@@ -177,10 +179,17 @@ class GLTF2USD:
                 double_sided = False
                 if 'material' in mesh_primitive and 'doubleSided' in self.gltf_loader.json_data['materials'][mesh_primitive['material']]:
                     double_sided = self.gltf_loader.json_data['materials'][mesh_primitive['material']]['doubleSided']
-                self._convert_primitive_to_mesh(name=mesh_primitive_name, primitive=mesh_primitive, usd_parent_node=usd_parent_node, node_index=node_index, double_sided = double_sided, skin_index=skin_index)
+                self._convert_primitive_to_mesh(
+                    name=mesh_primitive_name,
+                    primitive=mesh_primitive,
+                    usd_parent_node=usd_parent_node,
+                    node_index=node_index,
+                    double_sided = double_sided,
+                    skin_index=skin_index,
+                    skel_root=skel_root)
 
 
-    def _convert_primitive_to_mesh(self, name, primitive, usd_parent_node, node_index, double_sided, skin_index):
+    def _convert_primitive_to_mesh(self, name, primitive, usd_parent_node, node_index, double_sided, skin_index, skel_root):
         """
         Converts a glTF mesh primitive to a USD mesh
 
@@ -193,6 +202,8 @@ class GLTF2USD:
         """
         parent_path = usd_parent_node.GetPath()
         usd_node = self.stage.GetPrimAtPath(parent_path)
+        gltf_node = self.gltf_loader.json_data['nodes'][node_index]
+        gltf_mesh = self.gltf_loader.json_data['meshes'][gltf_node['mesh']]
         mesh = UsdGeom.Mesh.Define(self.stage, '{0}/{1}'.format(parent_path, name))
         mesh.CreateSubdivisionSchemeAttr().Set('none')
 
@@ -261,8 +272,12 @@ class GLTF2USD:
             accessors = list(map(lambda idx: self.gltf_loader.json_data['accessors'][idx], positions))
 
             # Set blendshape names on the animation
-            # QUESTION: what happens if there's no name? I don't think blendshapes can be anonymous.
-            names = list(map(lambda a: a['name'], accessors))
+            names = []
+            for i, weight in enumerate(gltf_mesh['weights']):
+                accessor = accessors[i]
+                blend_shape_name = accessor['name'] if 'name' in accessor else 'shape_{}'.format(i)
+                names.append(blend_shape_name)
+
             skelAnim.CreateBlendShapesAttr().Set(names)
             skinBinding.CreateBlendShapesAttr(names)
 
@@ -274,10 +289,10 @@ class GLTF2USD:
             blend_shape_targets = skinBinding.CreateBlendShapeTargetsRel()
 
             # Define offsets for each blendshape, and add them as skel:blendShapes and skel:blendShapeTargets
-            for accessor in accessors:
-                name = accessor['name']
+            for i, name in enumerate(names):
+                accessor = accessors[i]
                 offsets = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
-                blend_shape_name = '{0}/{1}'.format(mesh.GetPrim().GetPrimPath(), name)
+                blend_shape_name = '{0}/{1}'.format(mesh.GetPath(), name)
 
                 # define blendshapes in the mesh
                 blend_shape = UsdSkel.BlendShape.Define(self.stage, blend_shape_name)
@@ -978,9 +993,11 @@ class GLTF2USD:
         elif path == 'scale':
             return (usd_node.AddScaleOp(opSuffix='scale'), convert_scale)
         elif path == 'weights':
-            prim = usd_node.GetPrim().GetChild("skeleton_root_0").GetChild("skel").GetChild("anim")
-            anim_attr = prim.GetAttribute('blendShapeWeights')
-            return (anim_attr, convert_weights)
+            return (usd_node, lambda x,y,z,zz: x)
+
+            # prim = usd_node.GetPrim().GetChild("skeleton_root").GetChild("skel").GetChild("anim")
+            # anim_attr = prim.GetAttribute('blendShapeWeights')
+            # return (anim_attr, convert_weights)
         else:
             raise Exception('Unsupported animation target path! {}'.format(path))
 
