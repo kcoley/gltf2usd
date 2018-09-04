@@ -1110,7 +1110,6 @@ class GLTF2USD:
 
 
     def unpack_textures_to_grayscale_images(self, image_path, color_components):
-        # image_path may be a data uri?
         image_base_name = ntpath.basename(image_path)
         texture_name = image_base_name
         for color_component, sdf_type in color_components.iteritems():
