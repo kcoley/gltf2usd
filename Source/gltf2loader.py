@@ -102,8 +102,9 @@ class GLTF2Loader:
         remainder = value % size
         return value if (remainder == 0) else (value + size - remainder)
 
-    def get_data(self, buffer, accessor):
+    def get_data(self, accessor):
         bufferview = self.json_data['bufferViews'][accessor['bufferView']]
+        buffer = self.json_data['buffers'][bufferview['buffer']]
         accessor_type = AccessorType(accessor['type'])
 
         with open(os.path.join(self.root_dir, buffer['uri']), 'rb') as buffer_fptr:
