@@ -105,15 +105,14 @@ class GLTF2Loader:
 
     def get_data(self, buffer, accessor):
         bufferview = self.json_data['bufferViews'][accessor['bufferView']]
-        accessor_type = AccessorType(accessor['type'])
-
         uri = buffer['uri']
         buffer_data = ''
 
         if uri.startswith('data:application/octet-stream;base64,'):
             uri_data = uri.split(',')[1]
-            print("uri data: {}".format(uri_data))
             buffer_data = base64.b64decode(uri_data)
+            if 'byteOffset' in bufferview:
+                buffer_data = buffer_data[bufferview['byteOffset']:]
         else:
             buffer_file = os.path.join(self.root_dir, uri)
             with open(buffer_file, 'rb') as buffer_fptr:
@@ -123,7 +122,6 @@ class GLTF2Loader:
                 buffer_data = buffer_fptr.read(bufferview['byteLength'])
 
         data_arr = []
-
         accessor_component_type = AccessorComponentType(accessor['componentType'])
 
         accessor_type_size = accessor_type_count(accessor['type'])
@@ -149,20 +147,16 @@ class GLTF2Loader:
         else:
             raise Exception('unsupported accessor component type!')
         
-        print("offset: %i, count: %i, %r" % (offset, accessor['count'], buffer_data[offset:offset + data_type_size * accessor['count']]))
-
         for i in range(0, accessor['count']):
             entries = []
             for j in range(0, accessor_type_size):
                 x = offset + j * accessor_component_type_size
-                d = buffer_data[x:x + data_type_size]
-                entries.append(struct.unpack(data_type, d)[0])
+                window = buffer_data[x:x + data_type_size]
+                entries.append(struct.unpack(data_type, window)[0])
             if len(entries) > 1:
                 data_arr.append(tuple(entries))
             else:
                 data_arr.append(entries[0])
             offset = offset + bytestride
-
-        print("data_arr: %r" % (data_arr))
 
         return data_arr
