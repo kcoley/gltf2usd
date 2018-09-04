@@ -56,7 +56,6 @@ class GLTF2USD:
             self.fps = fps
 
             self.gltf_loader = GLTF2Loader(gltf_file)
-            self.buffer = self.gltf_loader.json_data['buffers'][0]
             self.verbose = verbose
             self.scale = scale
 
@@ -207,25 +206,25 @@ class GLTF2USD:
                     override_prim = self.stage.OverridePrim(mesh.GetPath())
 
                     override_prim.CreateAttribute('extent', Sdf.ValueTypeNames.Float3Array).Set([accessor['min'], accessor['max']])
-                    data = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
+                    data = self.gltf_loader.get_data(accessor=accessor)
                     mesh.CreatePointsAttr(data)
                 if attribute == 'NORMAL':
                     accessor_index = primitive['attributes'][attribute]
                     accessor = self.gltf_loader.json_data['accessors'][accessor_index]
-                    data = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
+                    data = self.gltf_loader.get_data(accessor=accessor)
                     mesh.CreateNormalsAttr(data)
 
                 if attribute == 'COLOR_0':
                     accessor_index = primitive['attributes'][attribute]
                     accessor = self.gltf_loader.json_data['accessors'][accessor_index]
-                    data = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
+                    data = self.gltf_loader.get_data(accessor=accessor)
                     prim_var = UsdGeom.PrimvarsAPI(mesh)
                     colors = prim_var.CreatePrimvar('displayColor', Sdf.ValueTypeNames.Color3f, 'vertex').Set(data)
 
                 if attribute == 'TEXCOORD_0':
                     accessor_index = primitive['attributes'][attribute]
                     accessor = self.gltf_loader.json_data['accessors'][accessor_index]
-                    data = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
+                    data = self.gltf_loader.get_data(accessor=accessor)
                     invert_uvs = []
                     for uv in data:
                         new_uv = (uv[0], 1 - uv[1])
@@ -242,7 +241,7 @@ class GLTF2USD:
 
         if 'indices' in primitive:
             #TODO: Need to support glTF primitive modes.  Currently only Triangle mode is supported
-            indices = self.gltf_loader.get_data(buffer=self.buffer, accessor=self.gltf_loader.json_data['accessors'][primitive['indices']])
+            indices = self.gltf_loader.get_data(accessor=self.gltf_loader.json_data['accessors'][primitive['indices']])
 
             num_faces = len(indices)/3
             face_count = [3] * num_faces
@@ -461,7 +460,7 @@ class GLTF2USD:
                         primvar_st1_output=primvar_st1_output
                     )
 
-                
+
                 if pbr_metallic_roughness and 'baseColorTexture' in pbr_metallic_roughness:
                     base_color_factor = pbr_metallic_roughness['baseColorFactor'] if 'baseColorFactor' in pbr_metallic_roughness else (1,1,1,1)
                     fallback_base_color = (base_color_factor[0], base_color_factor[1], base_color_factor[2])
@@ -693,9 +692,9 @@ class GLTF2USD:
                                     min_time = int(round(input_keyframe_accessor['min'][0] * self.fps))
                                     total_max_time = max(total_max_time, max_time)
                                     total_min_time = min(total_min_time, min_time)
-                                    input_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=input_keyframe_accessor)
+                                    input_keyframes = self.gltf_loader.get_data(accessor=input_keyframe_accessor)
                                     output_keyframe_accessor = self.gltf_loader.json_data['accessors'][animation_channel.sampler['output']]
-                                    output_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=output_keyframe_accessor)
+                                    output_keyframes = self.gltf_loader.get_data(accessor=output_keyframe_accessor)
 
                                     if len(input_keyframes) != len(output_keyframes):
                                         raise Exception('glTF animation input and output key frames must be the same length!')
@@ -835,10 +834,10 @@ class GLTF2USD:
             primitive_attributes = gltf_mesh['primitives'][0]['attributes']
             if 'WEIGHTS_0' in primitive_attributes and 'JOINTS_0' in primitive_attributes:
                 accessor = self.gltf_loader.json_data['accessors'][gltf_mesh['primitives'][0]['attributes']['WEIGHTS_0']]
-                total_vertex_weights = self.gltf_loader.get_data(self.buffer, accessor)
+                total_vertex_weights = self.gltf_loader.get_data(accessor)
 
                 accessor = self.gltf_loader.json_data['accessors'][gltf_mesh['primitives'][0]['attributes']['JOINTS_0']]
-                total_vertex_joints = self.gltf_loader.get_data(self.buffer, accessor)
+                total_vertex_joints = self.gltf_loader.get_data(accessor)
                 total_joint_indices = []
                 total_joint_weights = []
 
@@ -866,7 +865,7 @@ class GLTF2USD:
         bind_matrices = []
         if 'inverseBindMatrices' in gltf_skin:
             inverse_bind_matrices_accessor = self.gltf_loader.json_data['accessors'][gltf_skin['inverseBindMatrices']]
-            inverse_bind_matrices = self.gltf_loader.get_data(buffer=self.buffer, accessor=inverse_bind_matrices_accessor)
+            inverse_bind_matrices = self.gltf_loader.get_data(accessor=inverse_bind_matrices_accessor)
 
             for matrix in inverse_bind_matrices:
                 bind_matrix = self._convert_to_usd_matrix(matrix)
@@ -971,9 +970,9 @@ class GLTF2USD:
         accessor = self.gltf_loader.json_data['accessors'][sampler['input']]
         max_time = int(round(accessor['max'][0] * self.fps))
         min_time = int(round(accessor['min'][0] * self.fps))
-        input_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
+        input_keyframes = self.gltf_loader.get_data(accessor=accessor)
         accessor = self.gltf_loader.json_data['accessors'][sampler['output']]
-        output_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
+        output_keyframes = self.gltf_loader.get_data(accessor=accessor)
         (transform, convert_func) = self._get_keyframe_conversion_func(usd_node, animation_channel.path)
 
         for i, keyframe in enumerate(input_keyframes):
@@ -989,9 +988,9 @@ class GLTF2USD:
         accessor = self.gltf_loader.json_data['accessors'][sampler['input']]
         max_time = int(round(accessor['max'][0] * self.fps))
         min_time = int(round(accessor['min'][0] * self.fps))
-        input_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
+        input_keyframes = self.gltf_loader.get_data(accessor=accessor)
         accessor = self.gltf_loader.json_data['accessors'][sampler['output']]
-        output_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
+        output_keyframes = self.gltf_loader.get_data(accessor=accessor)
         usd_animation = UsdSkel.Animation.Define(self.stage, '{0}/{1}'.format(usd_skeleton.GetPath(), 'anim'))
         usd_animation.CreateJointsAttr().Set([joint_name])
         usd_skel_root_path = usd_skeleton.GetPath().GetParentPath()
