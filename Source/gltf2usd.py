@@ -244,7 +244,14 @@ class GLTF2USD:
 
 
         if 'indices' in primitive:
-            #TODO: Need to support glTF primitive modes.  Currently only Triangle mode is supported
+            #TODO: Need to support glTF primitive modes.  Currently only Triangle mode (4) is supported
+            mode  = 4
+            if 'mode' in primitive:
+                mode = primitive['mode']
+
+            if mode is not 4:
+                raise "Unsupported primitive mode: {}".format(mode)
+
             indices = self.gltf_loader.get_data(buffer=self.buffer, accessor=self.gltf_loader.json_data['accessors'][primitive['indices']])
 
             num_faces = len(indices)/3

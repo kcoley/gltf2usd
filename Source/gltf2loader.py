@@ -2,6 +2,7 @@ from enum import Enum
 import json
 import os
 import struct
+import base64
 
 class AccessorType(Enum):
     SCALAR = 'SCALAR'
@@ -104,51 +105,58 @@ class GLTF2Loader:
 
     def get_data(self, buffer, accessor):
         bufferview = self.json_data['bufferViews'][accessor['bufferView']]
-        accessor_type = AccessorType(accessor['type'])
+        uri = buffer['uri']
+        buffer_data = ''
 
-        with open(os.path.join(self.root_dir, buffer['uri']), 'rb') as buffer_fptr:
+        if uri.startswith('data:application/octet-stream;base64,'):
+            uri_data = uri.split(',')[1]
+            buffer_data = base64.b64decode(uri_data)
             if 'byteOffset' in bufferview:
-                buffer_fptr.seek(bufferview['byteOffset'], 1)
+                buffer_data = buffer_data[bufferview['byteOffset']:]
+        else:
+            buffer_file = os.path.join(self.root_dir, uri)
+            with open(buffer_file, 'rb') as buffer_fptr:
+                if 'byteOffset' in bufferview:
+                    buffer_fptr.seek(bufferview['byteOffset'], 1)
 
-            buffer_data = buffer_fptr.read(bufferview['byteLength'])
+                buffer_data = buffer_fptr.read(bufferview['byteLength'])
 
-            data_arr = []
+        data_arr = []
+        accessor_component_type = AccessorComponentType(accessor['componentType'])
 
-            accessor_component_type = AccessorComponentType(accessor['componentType'])
+        accessor_type_size = accessor_type_count(accessor['type'])
+        accessor_component_type_size = accessor_component_type_bytesize(accessor_component_type)
 
-            accessor_type_size = accessor_type_count(accessor['type'])
-            accessor_component_type_size = accessor_component_type_bytesize(accessor_component_type)
+        bytestride = int(bufferview['byteStride']) if ('byteStride' in bufferview) else (accessor_type_size * accessor_component_type_size)
+        offset = int(accessor['byteOffset']) if 'byteOffset' in accessor else 0
 
-            bytestride = int(bufferview['byteStride']) if ('byteStride' in bufferview) else (accessor_type_size * accessor_component_type_size)
-            offset = accessor['byteOffset'] if 'byteOffset' in accessor else 0
-
-            data_type = ''
+        data_type = ''
+        data_type_size = 4
+        if accessor_component_type == AccessorComponentType.FLOAT:
+            data_type = 'f'
             data_type_size = 4
-            if accessor_component_type == AccessorComponentType.FLOAT:
-                data_type = 'f'
-                data_type_size = 4
-            elif accessor_component_type == AccessorComponentType.UNSIGNED_INT:
-                data_type = 'i'
-                data_type_size = 4
-            elif accessor_component_type == AccessorComponentType.UNSIGNED_SHORT:
-                data_type = 'h'
-                data_type_size = 2
-            elif accessor_component_type == AccessorComponentType.UNSIGNED_BYTE:
-                data_type = 'b'
-                data_type_size = 1
+        elif accessor_component_type == AccessorComponentType.UNSIGNED_INT:
+            data_type = 'I'
+            data_type_size = 4
+        elif accessor_component_type == AccessorComponentType.UNSIGNED_SHORT:
+            data_type = 'H'
+            data_type_size = 2
+        elif accessor_component_type == AccessorComponentType.UNSIGNED_BYTE:
+            data_type = 'B'
+            data_type_size = 1
+        else:
+            raise Exception('unsupported accessor component type!')
+        
+        for i in range(0, accessor['count']):
+            entries = []
+            for j in range(0, accessor_type_size):
+                x = offset + j * accessor_component_type_size
+                window = buffer_data[x:x + data_type_size]
+                entries.append(struct.unpack(data_type, window)[0])
+            if len(entries) > 1:
+                data_arr.append(tuple(entries))
             else:
-                raise Exception('unsupported accessor component type!')
+                data_arr.append(entries[0])
+            offset = offset + bytestride
 
-            for i in range(0, accessor['count']):
-                entries = []
-                for j in range(0, accessor_type_size):
-                    x = offset + j * accessor_component_type_size
-                    entries.append(struct.unpack(
-                        data_type, buffer_data[x:x + data_type_size])[0])
-                if len(entries) > 1:
-                    data_arr.append(tuple(entries))
-                else:
-                    data_arr.append(entries[0])
-                offset = offset + bytestride
-
-            return data_arr
+        return data_arr
