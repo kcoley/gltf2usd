@@ -295,7 +295,7 @@ class GLTF2USD:
                     img = Image.open(BytesIO(base64.b64decode(uri_data)))
 
                     # NOTE: image might not have a name
-                    image_name = image['name'] if 'name' in image else 'image{}.{}'.format(i, img.format)
+                    image_name = image['name'] if 'name' in image else 'image{}.{}'.format(i, img.format.lower())
                     image_path = os.path.join(self.gltf_loader.root_dir, image_name)
                     img.save(image_path)
 
@@ -1221,7 +1221,16 @@ class GLTF2USD:
             self._convert_materials_to_preview_surface()
             self.convert_nodes_to_xform()
 
-def convert_to_usd(gltf_file, usd_file, fps, scale, verbose=False):
+def check_usd_compliance(rootLayer, arkit=False):
+    checker = UsdUtils.ComplianceChecker(rootLayer, arkit=arkit, skipARKitRootLayerCheck=False)
+    errors = checker.GetErrors()
+    failedChecks = checker.GetFailedChecks()
+    for msg in errors + failedChecks:
+        print(msg)
+    return len(errors) == 0 and len(failedChecks) == 0
+
+
+def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False):
     """Converts a glTF file to USD
 
     Arguments:
@@ -1249,10 +1258,15 @@ def convert_to_usd(gltf_file, usd_file, fps, scale, verbose=False):
             r = Ar.GetResolver()
             resolvedAsset = r.Resolve(usdc_file)
             context = r.CreateDefaultContextForAsset(resolvedAsset)
+
+            success = check_usd_compliance(resolvedAsset, arkit=args.arkit)
             with Ar.ResolverContextBinder(context):
-                # NOTE: should we add compliance checking with UsdUtils.ComplianceChecker?
-                # NOTE: should we provide option for ARKitAsset?
-                success = UsdUtils.CreateNewUsdzPackage(usdc_file, usd_file)
+                if arkit and not success:
+                    print('USD is not ARKit compliant')
+                    return
+
+                success = UsdUtils.CreateNewUsdzPackage(usdc_file, usd_file) and success
+
                 if success:
                     usd.logger.info('created package {} with contents:'.format(usd_file))
                     zip_file = Usd.ZipFile.Open(usd_file)
@@ -1270,7 +1284,8 @@ if __name__ == '__main__':
     parser.add_argument('--output', '-o', action='store', dest='usd_file', help='destination to store generated .usda file', required=True)
     parser.add_argument('--verbose', '-v', action='store_true', dest='verbose', help='Enable verbose mode')
     parser.add_argument('--scale', '-s', action='store', dest='scale', help='Scale the resulting USDA', type=float, default=100)
+    parser.add_argument('--arkit', action='store_true', dest='arkit', help='Check USD with ARKit compatibility before making USDZ file')
     args = parser.parse_args()
 
     if args.gltf_file:
-        convert_to_usd(args.gltf_file, args.usd_file, args.fps, args.scale, args.verbose)
+        convert_to_usd(args.gltf_file, args.usd_file, args.fps, args.scale, args.arkit, args.verbose)

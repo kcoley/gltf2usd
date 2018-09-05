@@ -12,12 +12,11 @@ This tool currently only works on glTF 2.0 files with external textures, based o
 - glTF `PbrSpecularGlossiness` extension
 - glTF Skeletal animation is mapped to `UsdSkel`
 - glTF node animations are supported
-- Currently supports `.gltf` conversion to `.usd`, `.usda` and `.usdc`
+- Currently supports `.gltf` conversion to `.usd`, `.usda`, `.usdc`, and `.usdz`
 
 
 ## Currently not implemented:
 - `.glb` files
-- glTF files with base64 data
 - glTF extensions
 - Primitive modes (other than triangles)
 
@@ -43,7 +42,7 @@ You can install the following python dependencies using `pip install -r requirem
 ```Shell
 python gltf2usd.py -h
 usage: gltf2usd.py [-h] --gltf GLTF_FILE [--fps FPS] --output USD_FILE
-                   [--scale] [--verbose]
+                   [--scale] [--verbose] [--arkit]
 
 Convert glTF to USD
 
@@ -56,6 +55,8 @@ optional arguments:
                         destination to store generated .usda file
   --scale SCALE, -s     Scale the resulting USDA model
   --verbose, -v         Enable verbose mode
+  --arkit               Check USD with ARKit compatibility before making USDZ
+                        file
 ```
 
 ## Sample usage:
