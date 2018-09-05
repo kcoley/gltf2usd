@@ -1,4 +1,5 @@
 import argparse
+import base64
 import collections
 import json
 import logging
@@ -7,6 +8,8 @@ import numpy
 import os
 import re
 import shutil
+
+from io import BytesIO
 
 from gltf2loader import GLTF2Loader, PrimitiveMode, TextureWrap, MinFilter, MagFilter
 
@@ -56,7 +59,6 @@ class GLTF2USD:
             self.fps = fps
 
             self.gltf_loader = GLTF2Loader(gltf_file)
-            self.buffer = self.gltf_loader.json_data['buffers'][0]
             self.verbose = verbose
             self.scale = scale
 
@@ -219,25 +221,25 @@ class GLTF2USD:
                     override_prim = self.stage.OverridePrim(mesh.GetPath())
 
                     override_prim.CreateAttribute('extent', Sdf.ValueTypeNames.Float3Array).Set([accessor['min'], accessor['max']])
-                    data = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
+                    data = self.gltf_loader.get_data(accessor=accessor)
                     mesh.CreatePointsAttr(data)
                 if attribute == 'NORMAL':
                     accessor_index = primitive['attributes'][attribute]
                     accessor = self.gltf_loader.json_data['accessors'][accessor_index]
-                    data = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
+                    data = self.gltf_loader.get_data(accessor=accessor)
                     mesh.CreateNormalsAttr(data)
 
                 if attribute == 'COLOR_0':
                     accessor_index = primitive['attributes'][attribute]
                     accessor = self.gltf_loader.json_data['accessors'][accessor_index]
-                    data = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
+                    data = self.gltf_loader.get_data(accessor=accessor)
                     prim_var = UsdGeom.PrimvarsAPI(mesh)
                     colors = prim_var.CreatePrimvar('displayColor', Sdf.ValueTypeNames.Color3f, 'vertex').Set(data)
 
                 if attribute == 'TEXCOORD_0':
                     accessor_index = primitive['attributes'][attribute]
                     accessor = self.gltf_loader.json_data['accessors'][accessor_index]
-                    data = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
+                    data = self.gltf_loader.get_data(accessor=accessor)
                     invert_uvs = []
                     for uv in data:
                         new_uv = (uv[0], 1 - uv[1])
@@ -299,8 +301,7 @@ class GLTF2USD:
 
         if 'indices' in primitive:
             #TODO: Need to support glTF primitive modes.  Currently only Triangle mode is supported
-            indices = self.gltf_loader.get_data(buffer=self.buffer, accessor=self.gltf_loader.json_data['accessors'][primitive['indices']])
-
+            indices = self.gltf_loader.get_data(accessor=self.gltf_loader.json_data['accessors'][primitive['indices']])
             num_faces = len(indices)/3
             face_count = [3] * num_faces
             mesh.CreateFaceVertexCountsAttr(face_count)
@@ -347,12 +348,27 @@ class GLTF2USD:
 
         if 'images' in self.gltf_loader.json_data:
             self.images = []
-            for image in self.gltf_loader.json_data['images']:
-                image_path = os.path.join(self.gltf_loader.root_dir, image['uri'])
-                image_name = os.path.join(self.output_dir, ntpath.basename(image_path))
+            for i, image in enumerate(self.gltf_loader.json_data['images']):
+                image_name = ''
 
-                if self.gltf_loader.root_dir is not self.output_dir:
-                    shutil.copyfile(image_path, image_name)
+                # save data-uri textures
+                if image['uri'].startswith('data:image'):
+                    uri_data = image['uri'].split(',')[1]
+                    img = Image.open(BytesIO(base64.b64decode(uri_data)))
+
+                    # NOTE: image might not have a name
+                    image_name = image['name'] if 'name' in image else 'image{}.{}'.format(i, img.format)
+                    image_path = os.path.join(self.gltf_loader.root_dir, image_name)
+                    img.save(image_path)
+
+                # otherwise just copy the texture over
+                else:
+                    image_path = os.path.join(self.gltf_loader.root_dir, image['uri'])
+                    image_name = os.path.join(self.output_dir, ntpath.basename(image_path))
+
+                    if self.gltf_loader.root_dir is not self.output_dir:
+                        shutil.copyfile(image_path, image_name)
+
                 self.images.append(ntpath.basename(image_name))
 
     def _convert_materials_to_preview_surface(self):
@@ -518,7 +534,7 @@ class GLTF2USD:
                         primvar_st1_output=primvar_st1_output
                     )
 
-                
+
                 if pbr_metallic_roughness and 'baseColorTexture' in pbr_metallic_roughness:
                     base_color_factor = pbr_metallic_roughness['baseColorFactor'] if 'baseColorFactor' in pbr_metallic_roughness else (1,1,1,1)
                     fallback_base_color = (base_color_factor[0], base_color_factor[1], base_color_factor[2])
@@ -750,9 +766,9 @@ class GLTF2USD:
                                     min_time = int(round(input_keyframe_accessor['min'][0] * self.fps))
                                     total_max_time = max(total_max_time, max_time)
                                     total_min_time = min(total_min_time, min_time)
-                                    input_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=input_keyframe_accessor)
+                                    input_keyframes = self.gltf_loader.get_data(accessor=input_keyframe_accessor)
                                     output_keyframe_accessor = self.gltf_loader.json_data['accessors'][animation_channel.sampler['output']]
-                                    output_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=output_keyframe_accessor)
+                                    output_keyframes = self.gltf_loader.get_data(accessor=output_keyframe_accessor)
 
                                     if len(input_keyframes) != len(output_keyframes):
                                         raise Exception('glTF animation input and output key frames must be the same length!')
@@ -888,10 +904,10 @@ class GLTF2USD:
             primitive_attributes = gltf_mesh['primitives'][0]['attributes']
             if 'WEIGHTS_0' in primitive_attributes and 'JOINTS_0' in primitive_attributes:
                 accessor = self.gltf_loader.json_data['accessors'][gltf_mesh['primitives'][0]['attributes']['WEIGHTS_0']]
-                total_vertex_weights = self.gltf_loader.get_data(self.buffer, accessor)
+                total_vertex_weights = self.gltf_loader.get_data(accessor)
 
                 accessor = self.gltf_loader.json_data['accessors'][gltf_mesh['primitives'][0]['attributes']['JOINTS_0']]
-                total_vertex_joints = self.gltf_loader.get_data(self.buffer, accessor)
+                total_vertex_joints = self.gltf_loader.get_data(accessor)
                 total_joint_indices = []
                 total_joint_weights = []
 
@@ -919,7 +935,7 @@ class GLTF2USD:
         bind_matrices = []
         if 'inverseBindMatrices' in gltf_skin:
             inverse_bind_matrices_accessor = self.gltf_loader.json_data['accessors'][gltf_skin['inverseBindMatrices']]
-            inverse_bind_matrices = self.gltf_loader.get_data(buffer=self.buffer, accessor=inverse_bind_matrices_accessor)
+            inverse_bind_matrices = self.gltf_loader.get_data(accessor=inverse_bind_matrices_accessor)
 
             for matrix in inverse_bind_matrices:
                 bind_matrix = self._convert_to_usd_matrix(matrix)
@@ -1022,9 +1038,9 @@ class GLTF2USD:
         input_accessor = self.gltf_loader.json_data['accessors'][sampler['input']]
         max_time = int(round(input_accessor['max'][0] * self.fps))
         min_time = int(round(input_accessor['min'][0] * self.fps))
-        input_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=input_accessor)
+        input_keyframes = self.gltf_loader.get_data(accessor=input_accessor)
         output_accessor = self.gltf_loader.json_data['accessors'][sampler['output']]
-        output_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=output_accessor)
+        output_keyframes = self.gltf_loader.get_data(accessor=output_accessor)
 
         num_values = output_accessor['count'] / input_accessor['count']
         (transform, convert_func) = self._get_keyframe_conversion_func(usd_node, animation_channel)
@@ -1091,9 +1107,9 @@ class GLTF2USD:
         accessor = self.gltf_loader.json_data['accessors'][sampler['input']]
         max_time = int(round(accessor['max'][0] * self.fps))
         min_time = int(round(accessor['min'][0] * self.fps))
-        input_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
+        input_keyframes = self.gltf_loader.get_data(accessor=accessor)
         accessor = self.gltf_loader.json_data['accessors'][sampler['output']]
-        output_keyframes = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
+        output_keyframes = self.gltf_loader.get_data(accessor=accessor)
         usd_animation = UsdSkel.Animation.Define(self.stage, '{0}/{1}'.format(usd_skeleton.GetPath(), 'anim'))
         usd_animation.CreateJointsAttr().Set([joint_name])
         usd_skel_root_path = usd_skeleton.GetPath().GetParentPath()
@@ -1160,14 +1176,14 @@ class GLTF2USD:
             raise Exception('Unsupported animation target path! {}'.format(target_path))
 
 
-    def unpack_textures_to_grayscale_images(self, image, color_components):
-        image_base_name = ntpath.basename(image)
+    def unpack_textures_to_grayscale_images(self, image_path, color_components):
+        image_base_name = ntpath.basename(image_path)
         texture_name = image_base_name
         for color_component, sdf_type in color_components.iteritems():
             if color_component == 'rgb':
                 pass
             else:
-                img = Image.open(image)
+                img = Image.open(image_path)
                 if img.mode == 'P':
                     img = img.convert('RGB')
                 if img.mode == 'RGB':
@@ -1239,7 +1255,7 @@ class GLTF2USD:
     '''
     def _convert_texture_to_usd(self, primvar_st0_output, primvar_st1_output, pbr_mat, gltf_texture, gltf_texture_name, color_components, scale_factor, fallback_factor, material_path, fallback_type, bias=None):
         image_name = gltf_texture if (isinstance(gltf_texture, basestring)) else self.images[gltf_texture['index']]
-        image_name = os.path.join(self.output_dir, image_name)
+        image_path = os.path.join(self.output_dir, image_name)
         texture_index = int(gltf_texture['index'])
         texture = self.gltf_loader.json_data['textures'][texture_index]
         wrap_modes = self._get_texture__wrap_modes(texture)
@@ -1251,7 +1267,7 @@ class GLTF2USD:
         if bias:
             texture_shader.CreateInput('bias', Sdf.ValueTypeNames.Float4).Set(bias)
 
-        texture_name = self.unpack_textures_to_grayscale_images(image_name, color_components)
+        texture_name = self.unpack_textures_to_grayscale_images(image_path, color_components)
         file_asset = texture_shader.CreateInput('file', Sdf.ValueTypeNames.Asset)
         file_asset.Set(texture_name)
 
