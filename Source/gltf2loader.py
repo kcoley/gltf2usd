@@ -103,10 +103,11 @@ class GLTF2Loader:
         remainder = value % size
         return value if (remainder == 0) else (value + size - remainder)
 
-    def get_data(self, buffer, accessor):
+    def get_data(self, accessor):
         bufferview = self.json_data['bufferViews'][accessor['bufferView']]
-        uri = buffer['uri']
-        buffer_data = ''
+        buffer = self.json_data['buffers'][bufferview['buffer']]
+        accessor_type = AccessorType(accessor['type'])
+
 
         if uri.startswith('data:application/octet-stream;base64,'):
             uri_data = uri.split(',')[1]
