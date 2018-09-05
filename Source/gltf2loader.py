@@ -107,7 +107,8 @@ class GLTF2Loader:
         bufferview = self.json_data['bufferViews'][accessor['bufferView']]
         buffer = self.json_data['buffers'][bufferview['buffer']]
         accessor_type = AccessorType(accessor['type'])
-
+        uri = buffer['uri']
+        buffer_data = ''
 
         if uri.startswith('data:application/octet-stream;base64,'):
             uri_data = uri.split(',')[1]
@@ -147,7 +148,7 @@ class GLTF2Loader:
             data_type_size = 1
         else:
             raise Exception('unsupported accessor component type!')
-        
+
         for i in range(0, accessor['count']):
             entries = []
             for j in range(0, accessor_type_size):
