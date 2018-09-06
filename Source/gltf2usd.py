@@ -102,7 +102,7 @@ class GLTF2USD:
                 node = self.gltf_loader.json_data['nodes'][node_index]
 
                 if node_index not in child_nodes:
-                    name = node['name'] if 'name' in node else 'node{}'.format(i)
+                    name = self._convert_to_usd_friendly_node_name(node['name']) if 'name' in node else 'node{}'.format(i)
                     xform_name = '{0}/{1}'.format(parent_transform.GetPath(), name)
                     self._convert_node_to_xform(node, node_index, xform_name)
 
@@ -158,7 +158,10 @@ class GLTF2USD:
         if 'children' in node:
             for child_index in node['children']:
                 child_node = self.gltf_loader.json_data['nodes'][child_index]
-                child_name = child_node['name'] if 'name' in node else 'node{}'.format(child_index)
+                child_name = 'node{}'.format(child_index)
+                if 'name' in child_node and len(child_node['name']) > 0:
+                    child_name = self._convert_to_usd_friendly_node_name(child_node['name'])
+
                 child_xform_name = '{0}/{1}'.format(xform_name, child_name)
                 self._convert_node_to_xform(child_node, child_index, child_xform_name)
 
@@ -273,7 +276,7 @@ class GLTF2USD:
 
             # Set blendshape names on the animation
             names = []
-            for i, weight in enumerate(gltf_mesh['weights']):
+            for i, _ in enumerate(gltf_mesh['weights']):
                 accessor = accessors[i]
                 blend_shape_name = accessor['name'] if 'name' in accessor else 'shape_{}'.format(i)
                 names.append(blend_shape_name)
@@ -291,7 +294,7 @@ class GLTF2USD:
             # Define offsets for each blendshape, and add them as skel:blendShapes and skel:blendShapeTargets
             for i, name in enumerate(names):
                 accessor = accessors[i]
-                offsets = self.gltf_loader.get_data(buffer=self.buffer, accessor=accessor)
+                offsets = self.gltf_loader.get_data(accessor=accessor)
                 blend_shape_name = '{0}/{1}'.format(mesh.GetPath(), name)
 
                 # define blendshapes in the mesh
@@ -680,7 +683,7 @@ class GLTF2USD:
             str -- USD friendly name
         """
         #return name
-        name = re.sub(r'\.|\b \b|-\b|:|\(|\)|[ \t]', '_', name) # replace '.',' ','-',':','/','\','(',')' and ':' with '_'
+        name = re.sub(r'\.|\b \b|-\b|:|-|\(|\)|[ \t]', '_', name) # replace '.',' ','-',':','/','\','(',')' and ':' with '_'
         return re.sub('//', '/', name)
 
 
@@ -1081,8 +1084,8 @@ class GLTF2USD:
 
         def convert_weights(transform, time, output, i, values_per_step):
             start = i * values_per_step
-            end = i * values_per_step + values_per_step
-            values = output[i * values_per_step:i * values_per_step + values_per_step]
+            end = start + values_per_step
+            values = output[start:end]
             value = list(map(lambda x: round(x, 5) + 0, values))
             transform.Set(time=time, value=value)
 
