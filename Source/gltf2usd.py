@@ -15,7 +15,7 @@ from gltf2loader import GLTF2Loader, PrimitiveMode, TextureWrap, MinFilter, MagF
 
 from PIL import Image
 
-from pxr import Usd, UsdGeom, Sdf, UsdShade, Gf, UsdSkel, Vt
+from pxr import Usd, UsdGeom, Sdf, UsdShade, Gf, UsdSkel, Vt, Ar, UsdUtils
 
 AnimationsMap = collections.namedtuple('AnimationMap', ('path', 'sampler'))
 Node = collections.namedtuple('Node', ('index', 'parent', 'children', 'name', 'hierarchy_name'))
@@ -53,23 +53,20 @@ class GLTF2USD:
         console_handler.setLevel(logging.DEBUG)
         self.logger.addHandler(console_handler)
 
-        if not usd_file.endswith('.usda'):
-            self.logger.error('This tool can only export to .usda file format')
-        else:
-            self.fps = fps
+        self.fps = fps
+        self.gltf_loader = GLTF2Loader(gltf_file)
+        self.verbose = verbose
+        self.scale = scale
 
-            self.gltf_loader = GLTF2Loader(gltf_file)
-            self.verbose = verbose
-            self.scale = scale
+        self.output_dir = os.path.dirname(usd_file)
+        filename = '%s.%s' % (os.path.splitext(usd_file)[0], 'usda')
 
-            self.output_dir = os.path.dirname(usd_file)
+        self.stage = Usd.Stage.CreateNew(filename)
+        self.gltf_usd_nodemap = {}
+        self.gltf_usdskel_nodemap = {}
+        self._usd_mesh_skin_map = {}
 
-            self.stage = Usd.Stage.CreateNew(usd_file)
-            self.gltf_usd_nodemap = {}
-            self.gltf_usdskel_nodemap = {}
-            self._usd_mesh_skin_map = {}
-
-            self.convert()
+        self.convert()
 
 
     def _get_child_nodes(self):
@@ -107,9 +104,7 @@ class GLTF2USD:
                     self._convert_node_to_xform(node, node_index, xform_name)
 
             self._convert_animations_to_usd()
-            self.stage.GetRootLayer().Save()
 
-        self.logger.info('Conversion complete!')
 
     def _init_animations_map(self):
         """Creates a mapping of glTF node indices to sampler animations
@@ -360,7 +355,7 @@ class GLTF2USD:
                     img = Image.open(BytesIO(base64.b64decode(uri_data)))
 
                     # NOTE: image might not have a name
-                    image_name = image['name'] if 'name' in image else 'image{}.{}'.format(i, img.format)
+                    image_name = image['name'] if 'name' in image else 'image{}.{}'.format(i, img.format.lower())
                     image_path = os.path.join(self.gltf_loader.root_dir, image_name)
                     img.save(image_path)
 
@@ -1298,8 +1293,16 @@ class GLTF2USD:
             self._convert_materials_to_preview_surface()
             self.convert_nodes_to_xform()
 
+def check_usd_compliance(rootLayer, arkit=False):
+    checker = UsdUtils.ComplianceChecker(rootLayer, arkit=arkit, skipARKitRootLayerCheck=False)
+    errors = checker.GetErrors()
+    failedChecks = checker.GetFailedChecks()
+    for msg in errors + failedChecks:
+        print(msg)
+    return len(errors) == 0 and len(failedChecks) == 0
 
-def convert_to_usd(gltf_file, usd_file, fps, scale, verbose=False):
+
+def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False):
     """Converts a glTF file to USD
 
     Arguments:
@@ -1310,7 +1313,41 @@ def convert_to_usd(gltf_file, usd_file, fps, scale, verbose=False):
         verbose {bool} -- [description] (default: {False})
     """
 
-    GLTF2USD(gltf_file=gltf_file, usd_file=usd_file, fps=fps, scale=scale, verbose=verbose)
+    usd = GLTF2USD(gltf_file=gltf_file, usd_file=usd_file, fps=fps, scale=scale, verbose=verbose)
+    if usd.stage:
+        asset = usd.stage.GetRootLayer()
+        usd.logger.info('Conversion complete!')
+
+        asset.Save()
+        usd.logger.info('created {}'.format(asset.realPath))
+
+        if usd_file.endswith('.usdz') or usd_file.endswith('.usdc'):
+            usdc_file = '%s.%s' % (os.path.splitext(usd_file)[0], 'usdc')
+            asset.Export(usdc_file, args=dict(format='usdc'))
+            usd.logger.info('created {}'.format(usdc_file))
+
+        if usd_file.endswith('.usdz'):
+            r = Ar.GetResolver()
+            resolvedAsset = r.Resolve(usdc_file)
+            context = r.CreateDefaultContextForAsset(resolvedAsset)
+
+            success = check_usd_compliance(resolvedAsset, arkit=args.arkit)
+            with Ar.ResolverContextBinder(context):
+                if arkit and not success:
+                    print('USD is not ARKit compliant')
+                    return
+
+                success = UsdUtils.CreateNewUsdzPackage(usdc_file, usd_file) and success
+
+                if success:
+                    usd.logger.info('created package {} with contents:'.format(usd_file))
+                    zip_file = Usd.ZipFile.Open(usd_file)
+                    file_names = zip_file.GetFileNames()
+                    for file_name in file_names:
+                        print('\t{}'.format(file_name))
+                else:
+                    usd.logger.error('could not create {}'.format(usd_file))
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert glTF to USD')
@@ -1319,7 +1356,8 @@ if __name__ == '__main__':
     parser.add_argument('--output', '-o', action='store', dest='usd_file', help='destination to store generated .usda file', required=True)
     parser.add_argument('--verbose', '-v', action='store_true', dest='verbose', help='Enable verbose mode')
     parser.add_argument('--scale', '-s', action='store', dest='scale', help='Scale the resulting USDA', type=float, default=100)
+    parser.add_argument('--arkit', action='store_true', dest='arkit', help='Check USD with ARKit compatibility before making USDZ file')
     args = parser.parse_args()
 
     if args.gltf_file:
-        convert_to_usd(args.gltf_file, args.usd_file, args.fps, args.scale, args.verbose)
+        convert_to_usd(args.gltf_file, args.usd_file, args.fps, args.scale, args.arkit, args.verbose)
