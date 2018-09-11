@@ -1328,17 +1328,16 @@ def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False):
 
         if usd_file.endswith('.usdz'):
             r = Ar.GetResolver()
-            resolvedAsset = r.Resolve(usdc_file)
-            context = r.CreateDefaultContextForAsset(resolvedAsset)
+            resolved_asset = r.Resolve(usdc_file)
+            context = r.CreateDefaultContextForAsset(resolved_asset)
 
-            success = check_usd_compliance(resolvedAsset, arkit=args.arkit)
+            success = check_usd_compliance(resolved_asset, arkit=args.arkit)
             with Ar.ResolverContextBinder(context):
                 if arkit and not success:
                     print('USD is not ARKit compliant')
                     return
 
-                success = UsdUtils.CreateNewUsdzPackage(usdc_file, usd_file) and success
-
+                success = UsdUtils.CreateNewUsdzPackage(resolved_asset, usd_file) and success
                 if success:
                     usd.logger.info('created package {} with contents:'.format(usd_file))
                     zip_file = Usd.ZipFile.Open(usd_file)
