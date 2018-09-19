@@ -679,8 +679,8 @@ class GLTF2USD:
         """
         #return name
         name = re.sub(r'\.|\b \b|-\b|:|-|\(|\)|[ \t]', '_', name) # replace '.',' ','-',':','/','\','(',')' and ':' with '_'
-        return re.sub('//', '/', name)
-
+        name=re.sub(r'^([\d]+)',r'm\1',name)
+        return re.sub('//', '/', name)        
 
     def _get_joint_name(self, joint_node):
         """Gets the joint name based on the glTF node hierarchy
@@ -1196,9 +1196,19 @@ class GLTF2USD:
                         texture_name = 'Metallic_{}'.format(image_base_name)
                         metallic.save(os.path.join(self.output_dir, texture_name))
                 elif img.mode == 'RGBA':
-                    if color_component == 'a':
+                    occlusion, roughness, metallic,aplha = img.split()
+                    if color_component == 'r':
+                        texture_name = 'Occlusion_{}'.format(image_base_name)
+                        occlusion.save(os.path.join(self.output_dir, texture_name))
+                    elif color_component == 'g':
+                        texture_name = 'Roughness_{}'.format(image_base_name)
+                        roughness.save(os.path.join(self.output_dir, texture_name))
+                    elif color_component == 'b':
+                        texture_name = 'Metallic_{}'.format(image_base_name)
+                        metallic.save(os.path.join(self.output_dir, texture_name))
+                    elif color_component == 'a':
                         texture_name = 'Glossiness_{}'.format(image_base_name)
-                        img.getchannel('A').save(os.path.join(self.output_dir, texture_name))
+                        alpha.save(os.path.join(self.output_dir, texture_name))
                     else:
                         raise Exception('unrecognized image type!: {}'.format(img.mode))
                 elif img.mode == 'L':
