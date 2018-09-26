@@ -3,6 +3,11 @@ import json
 import os
 import struct
 import base64
+import re
+
+import gltf2usdUtils
+
+from gltf2 import Skin, Node, Animation, Scene, Mesh, Material, GLTFImage
 
 class AccessorType(Enum):
     SCALAR = 'SCALAR'
@@ -78,6 +83,8 @@ def accessor_component_type_bytesize(x):
     }[x]
 
 
+
+
 class GLTF2Loader:
     """A very simple glTF loader.  It is essentially a utility to load data from accessors
     """
@@ -97,6 +104,129 @@ class GLTF2Loader:
         self.root_dir = os.path.dirname(gltf_file)
         with open(gltf_file) as f:
             self.json_data = json.load(f)
+        if os.path.isfile(gltf_file) and gltf_file.endswith('.gltf'):
+            self.root_dir = os.path.dirname(gltf_file)
+            with open(gltf_file) as f:
+                self.json_data = json.load(f)
+                self._initialize()
+        else:
+            raise Exception('Can only accept .gltf files')
+
+    def _initialize(self):
+        """Initializes the glTF loader
+        """
+        self._initialize_images()
+        self._initialize_materials()
+        self._initialize_meshes()
+        self._initialize_nodes()
+        self._initialize_skins()
+        self._initialize_scenes()
+        
+        self._initialize_animations()
+
+    def _initialize_images(self):
+        self._images = []
+        if 'images' in self.json_data:
+            for i, image_entry in enumerate(self.json_data['images']):
+                self._images.append(GLTFImage.GLTFImage(image_entry, i, self))
+
+
+    def _initialize_nodes(self):
+        self.nodes = []
+        if 'nodes' in self.json_data:
+            for i, node_entry in enumerate(self.json_data['nodes']):
+                node = Node(node_entry, i, self)
+                self.nodes.append(node)
+
+            for i, node_entry in enumerate(self.json_data['nodes']):
+                if 'children' in node_entry:
+                    parent = self.nodes[i]
+                    for child_index in node_entry['children']:
+                        child = self.nodes[child_index]
+                        child._parent = parent
+                        parent._children.append(child)
+
+    def _initialize_materials(self):
+        self._materials = []
+
+        if 'materials' in self.json_data:
+            for i, material_entry in enumerate(self.json_data['materials']):
+                material = Material(material_entry, i, self)
+                self._materials.append(material)
+
+    def _initialize_scenes(self):
+        self._scenes = []
+        self._main_scene = None
+        if 'scenes' in self.json_data:
+            for i, scene_entry in enumerate(self.json_data['scenes']):
+                scene = Scene(scene_entry, i, self.nodes)
+                self._scenes.append(scene)
+
+            if 'scene' in self.json_data:
+                self._main_scene = self._scenes[self.json_data['scene']]
+            else:
+                self._main_scene = self._scenes[0]
+
+    def get_images(self):
+        return self._images
+
+    def get_scenes(self):
+        """Get the scene objects from the glTF file
+        
+        Returns:
+            Scene[] -- glTF scene objects
+        """
+
+        return self._scenes
+
+    def get_main_scene(self):
+        """Returns the main scene in the glTF file, or none if there are no scenes
+        
+        Returns:
+            Scene -- glTF scene
+        """
+
+        return self._main_scene
+
+    def get_materials(self):
+        return self._materials
+
+    def get_meshes(self):
+        return self._meshes
+
+    def _initialize_meshes(self):
+        self._meshes = []
+        if 'meshes' in self.json_data:
+            for i, mesh_entry in enumerate(self.json_data['meshes']):
+                mesh = Mesh(mesh_entry, i, self)
+                self._meshes.append(mesh)
+
+
+
+    def _initialize_animations(self):
+        self.animations = []
+        if 'animations' in self.json_data:
+            for i, animation_entry in enumerate(self.json_data['animations']):
+                animation = Animation(animation_entry, i, self)
+                self.animations.append(animation)
+
+
+    def _initialize_skins(self):
+        self.skins = []
+        if 'skins' in self.json_data:
+            self.skins = [Skin(self, skin) for skin in self.json_data['skins']]
+            for node in self.nodes:
+                if node._skin_index != None:
+                    node._skin = self.skins[node._skin_index]
+
+    def get_nodes(self):
+        return self.nodes
+
+    def get_skins(self):
+        return self.skins
+
+    def get_animations(self):
+        return self.animations
 
 
     def align(self, value, size):
@@ -110,7 +240,7 @@ class GLTF2Loader:
         uri = buffer['uri']
         buffer_data = ''
 
-        if uri.startswith('data:application/octet-stream;base64,'):
+        if re.match(r'^data:.*?;base64,', uri):
             uri_data = uri.split(',')[1]
             buffer_data = base64.b64decode(uri_data)
             if 'byteOffset' in bufferview:

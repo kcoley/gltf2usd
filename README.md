@@ -57,9 +57,17 @@ optional arguments:
   --verbose, -v         Enable verbose mode
   --arkit               Check USD with ARKit compatibility before making USDZ
                         file
+  --use-euler-rotation  sets euler rotations for node animations instead of
+                        quaternion rotations
 ```
 
 ## Sample usage:
+Create a .usda file
 ```Shell
 python gltf2usd.py -g ../path_to_read_glTF_file/file.gltf -o path_to_write_usd_file/file.usda
+```
+
+Create a .usdz file
+```Shell
+python gltf2usd.py -g ../path_to_read_glTF_file/file.gltf -o path_to_write_usd_file/file.usdz
 ```
