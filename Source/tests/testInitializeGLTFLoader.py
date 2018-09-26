@@ -58,9 +58,7 @@ class TestInitializeGLTFLoader(unittest.TestCase):
 
     def test_get_root_skin_joint(self):
         skin = self.loader.get_skins()[0]
-        root_joint = skin.get_root_joint()
-        print('ROOT SKELETON\n\n\n\n')
-        print(root_joint.get_name())
+        root_joints = skin.get_root_joints()
 
     def test_skin_get_inverse_bind_matrices(self):
         skin = self.loader.get_skins()[0]
