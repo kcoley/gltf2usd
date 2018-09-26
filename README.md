@@ -4,7 +4,7 @@ This tool is a command-line Python script which converts glTF 2.0 models to USD,
 
 The tool is a **proof-of-concept**, to determine format conversion details, which could be useful for an actual C++ USD plugin.  It has been developed and tested on both Windows 10 and Mac OS 10.14 Mojave Beta, using USD v18.09 and is built against the USD Python API.
 
-This tool currently only works on glTF 2.0 files with external textures, based on the core glTF 2.0 specification (no extensions).  
+This tool currently only works on glTF 2.0 files, based on the core glTF 2.0 specification (no extensions).  
 
 ## Supported Features
 - glTF nodes are mapped to USD `Xform`
