@@ -1,6 +1,8 @@
 from enum import Enum
+import base64
 import json
 import os
+import re
 import struct
 import base64
 import re
@@ -8,6 +10,8 @@ import re
 import gltf2usdUtils
 
 from gltf2 import Skin, Node, Animation, Scene, Mesh, Material, GLTFImage
+
+
 
 class AccessorType(Enum):
     SCALAR = 'SCALAR'

@@ -701,7 +701,6 @@ def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False, 
                     return
 
                 success = UsdUtils.CreateNewUsdzPackage(resolved_asset, usd_file) and success
-
                 if success:
                     usd.logger.info('created package {} with contents:'.format(usd_file))
                     zip_file = Usd.ZipFile.Open(usd_file)
