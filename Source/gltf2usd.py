@@ -1,6 +1,9 @@
+#!/usr/bin/python
+
 import argparse
 import base64
 import collections
+import filecmp
 import json
 import logging
 import ntpath
@@ -410,8 +413,9 @@ class GLTF2USD:
                     image_path = os.path.join(self.gltf_loader.root_dir, image['uri'])
                     image_name = os.path.join(self.output_dir, ntpath.basename(image_path))
 
-                    if self.gltf_loader.root_dir is not self.output_dir:
-                        shutil.copyfile(image_path, image_name)
+                    if (self.gltf_loader.root_dir is not self.output_dir) and (image_path is not image_name):
+                        if not (os.path.isfile(image_name) and filecmp.cmp(image_path, image_name)):
+                            shutil.copyfile(image_path, image_name)
 
                 self.images.append(ntpath.basename(image_name))
 
