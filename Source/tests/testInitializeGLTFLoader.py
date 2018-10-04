@@ -101,6 +101,13 @@ class TestInitializeGLTFLoader(unittest.TestCase):
         print('output:\n\n\n\n\n\n\n')
         print(output_data)
 
+    def test_skins_equals(self):
+        skins = self.loader.get_skins()
+        skin = skins[0]
+        print(skin.equals(skin))
+
+
+
 
     
 

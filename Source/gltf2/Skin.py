@@ -46,3 +46,21 @@ class Skin:
 
     def get_root_joints(self):
         return self._root_skeletons
+
+    def equals(self, gltf_skin):
+        """Compares two skins to see if their values are equivalent to each other
+        
+        Arguments:
+            gltf_skin Skin -- glTF skin
+        
+        Returns:
+            [bool] -- Specifies if two skins are equivalent
+        """
+
+        joints = gltf_skin.get_joints()
+        if len(set(joints)^set(self.get_joints())) != 0:
+            return False
+        if gltf_skin.get_inverse_bind_matrices() != self.get_inverse_bind_matrices():
+            return False
+        
+        return True

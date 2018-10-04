@@ -145,6 +145,40 @@ class GLTF2USD:
         skeleton.CreateRestTransformsAttr(gltf_rest_transforms)
 
         return skeleton
+
+    def _create_usd_skeletonX(self, gltf_skin, skin_index, usd_joint_names):
+        """Creates a USD skeleton from a glTF skin
+        
+        Arguments:
+            gltf_skin {Skin} -- gltf skin
+            usd_joint_names {str[]} -- name of usd joints
+        
+        Returns:
+            Skeleton -- USD skeleton
+        """
+
+        # create skeleton  
+        root_joints = gltf_skin.get_root_joints()
+        root_joint_names = [GLTF2USDUtils.convert_to_usd_friendly_node_name(root_joint.get_name()) for root_joint in root_joints]
+
+        skeleton = None
+
+        gltf_bind_transforms = [Gf.Matrix4d(*xform).GetInverse() for xform in gltf_skin.get_inverse_bind_matrices()]
+        gltf_rest_transforms = [GLTF2USDUtils.compute_usd_transform_matrix_from_gltf_node(joint) for joint in gltf_skin.get_joints()]
+        if len(root_joints) > 1:
+            matrix = Gf.Matrix4d()
+            matrix.SetIdentity()
+            usd_joint_names.insert(0, '__root__')
+            gltf_bind_transforms.insert(0, matrix)
+            gltf_rest_transforms.insert(0, matrix)
+
+        skeleton = UsdSkel.Skeleton.Define(self.stage, '{0}/skin_{1}'.format('/Skeletons', skin_index)) 
+
+        skeleton.CreateJointsAttr().Set(usd_joint_names)
+        skeleton.CreateBindTransformsAttr(gltf_bind_transforms)
+        skeleton.CreateRestTransformsAttr(gltf_rest_transforms)
+
+        return skeleton
   
     def _create_usd_skeleton_animation(self, gltf_skin, usd_skeleton, joint_names):
         #get the animation data per joint
@@ -454,6 +488,13 @@ class GLTF2USD:
                 self.stage.SetEndTimeCode(total_max_time * self.fps)
                 self.stage.SetTimeCodesPerSecond(self.fps)
 
+    def _convert_skins_to_usd(self):
+        skeleton_scope = UsdGeom.Scope.Define(self.stage, '/Skeletons')
+        for skin_index, gltf_skin in enumerate(self.gltf_loader.get_skins()):
+            for joint in gltf_skin.get_joints():
+                usd_joint_names = [Sdf.Path(self._get_usd_joint_hierarchy_name(joint, gltf_skin.get_root_joints())) for joint in gltf_skin.get_joints()]
+                skeleton = self._create_usd_skeletonX(gltf_skin, skin_index, usd_joint_names)
+
 
     def _convert_skin_to_usd(self, gltf_node, gltf_primitive, usd_node, usd_mesh):
         """Converts a glTF skin to a UsdSkel
@@ -658,6 +699,7 @@ class GLTF2USD:
         if hasattr(self, 'gltf_loader'):
             self._convert_images_to_usd()
             self._convert_materials_to_preview_surface_new()
+            self._convert_skins_to_usd()
             self.convert_nodes_to_xform()
 
 def check_usd_compliance(rootLayer, arkit=False):
