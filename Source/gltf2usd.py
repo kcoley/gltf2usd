@@ -438,8 +438,6 @@ class GLTF2USD:
         animations = self.gltf_loader.get_animations()
 
         for animation in animations:
-            # only use first animation for now
-            #animation = animations[0]
             animation_channels = animation.get_animation_channels_for_node(gltf_node)
 
             if len(animation_channels) > 0:
