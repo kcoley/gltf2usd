@@ -437,9 +437,7 @@ class GLTF2USD:
     def _convert_animation_to_usd(self, gltf_node, usd_node):
         animations = self.gltf_loader.get_animations()
 
-        if len(animations) > 0:
-            # only use first animation for now
-            animation = animations[0]
+        for animation in animations:
             animation_channels = animation.get_animation_channels_for_node(gltf_node)
 
             if len(animation_channels) > 0:
