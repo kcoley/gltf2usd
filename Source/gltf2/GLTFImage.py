@@ -51,6 +51,8 @@ class GLTFImage(object):
         else:
             raise Exception('Unsupported image channel format {}'.format(channels))
 
+        if destination.endswith('jpg') or destination.endswith('.jpeg'):
+            img = img.convert('RGB')
         img.save(destination)
         
         return file_name 
