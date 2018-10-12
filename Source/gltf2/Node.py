@@ -1,3 +1,5 @@
+import unicodedata
+
 class Node:
     """Create a glTF node object
     """
@@ -5,6 +7,10 @@ class Node:
     def __init__(self, node_dict, node_index, gltf_loader):
         self._parent = None
         self._name = node_dict['name'] if ('name' in node_dict and len(node_dict['name']) > 0) else 'node_{}'.format(node_index)
+        
+        if isinstance(self._name, unicode):
+            self._name = unicodedata.normalize('NFKD', self._name).encode('ascii', 'ignore')
+
         self._name = '{0}_{1}'.format(self._name, node_index)
         self._node_index = node_index
         self._matrix = node_dict['matrix'] if ('matrix' in node_dict) else None
