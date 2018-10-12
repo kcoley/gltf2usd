@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/bin/python
 
 import argparse
 import base64
@@ -659,7 +659,14 @@ class GLTF2USD:
             self.convert_nodes_to_xform()
 
 def check_usd_compliance(rootLayer, arkit=False):
-    checker = UsdUtils.ComplianceChecker(rootLayer, arkit=arkit, skipARKitRootLayerCheck=False)
+    #An API change in v18.11 changed the sytax for UsdUtils.ComplianceChecker...
+    if Usd.GetMinorVersion() >= 18 and Usd.GetPatchVersion() >= 11:
+        checker = UsdUtils.ComplianceChecker(arkit=arkit, skipARKitRootLayerCheck=False)
+        checker.CheckCompliance(rootLayer)
+    else:
+        #Behavior in v18.09
+        checker = UsdUtils.ComplianceChecker(rootLayer, arkit=arkit, skipARKitRootLayerCheck=False)
+
     errors = checker.GetErrors()
     failedChecks = checker.GetFailedChecks()
     for msg in errors + failedChecks:
