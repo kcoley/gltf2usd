@@ -13,17 +13,15 @@ import re
 import shutil
 from io import BytesIO
 
-from gltf2loader import GLTF2Loader, PrimitiveMode, TextureWrap, MinFilter, MagFilter
-
 from PIL import Image
 
 from pxr import Usd, UsdGeom, Sdf, UsdShade, Gf, UsdSkel, Vt, Ar, UsdUtils
 
-from gltf2loader import GLTF2Loader, PrimitiveMode, TextureWrap, MinFilter, MagFilter
-from gltf2usdUtils import GLTF2USDUtils
-from usd_material import USDMaterial
+from _gltf2usd.gltf2loader import GLTF2Loader, PrimitiveMode, TextureWrap, MinFilter, MagFilter
+from _gltf2usd.gltf2usdUtils import GLTF2USDUtils
+from _gltf2usd.usd_material import USDMaterial
 
-import version
+from _gltf2usd import version
 
 __version__ = version.Version.get_version_name()
 
