@@ -1,3 +1,4 @@
+import codecs
 from enum import Enum
 import base64
 import json
@@ -106,15 +107,14 @@ class GLTF2Loader:
             raise Exception('Can only accept .gltf files')
 
         self.root_dir = os.path.dirname(gltf_file)
-        with open(gltf_file) as f:
-            self.json_data = json.load(f)
-        if os.path.isfile(gltf_file) and gltf_file.endswith('.gltf'):
-            self.root_dir = os.path.dirname(gltf_file)
+        try:
+            with codecs.open(gltf_file, encoding='utf-8', errors='strict') as f:
+                self.json_data = json.load(f)
+        except UnicodeDecodeError:
             with open(gltf_file) as f:
                 self.json_data = json.load(f)
-                self._initialize()
-        else:
-            raise Exception('Can only accept .gltf files')
+
+        self._initialize()
 
     def _initialize(self):
         """Initializes the glTF loader

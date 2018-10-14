@@ -11,7 +11,6 @@ import numpy
 import os
 import re
 import shutil
-
 from io import BytesIO
 
 from gltf2loader import GLTF2Loader, PrimitiveMode, TextureWrap, MinFilter, MagFilter
@@ -23,6 +22,10 @@ from pxr import Usd, UsdGeom, Sdf, UsdShade, Gf, UsdSkel, Vt, Ar, UsdUtils
 from gltf2loader import GLTF2Loader, PrimitiveMode, TextureWrap, MinFilter, MagFilter
 from gltf2usdUtils import GLTF2USDUtils
 from usd_material import USDMaterial
+
+import version
+
+__version__ = version.Version.get_version_name()
 
 class GLTF2USD:
     """
@@ -721,7 +724,7 @@ def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False, 
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Convert glTF to USD')
+    parser = argparse.ArgumentParser(description='Convert glTF to USD: v{}'.format(__version__))
     parser.add_argument('--gltf', '-g', action='store', dest='gltf_file', help='glTF file (in .gltf format)', required=True)
     parser.add_argument('--fps', action='store', dest='fps', help='The frames per second for the animations', type=float, default=24.0)
     parser.add_argument('--output', '-o', action='store', dest='usd_file', help='destination to store generated .usda file', required=True)
