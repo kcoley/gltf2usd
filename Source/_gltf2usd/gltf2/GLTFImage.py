@@ -29,6 +29,11 @@ class GLTFImage(object):
             self._name = ntpath.basename(self._uri)
             self._image_path = os.path.join(gltf_loader.root_dir, self._uri)
 
+        #decode unicode name to ascii
+        if isinstance(self._name, unicode):
+            self._name = self._name.encode('utf-8')
+            self._name = self._name.decode('ascii', 'ignore')
+
     def get_image_path(self):
         return self._image_path
 
