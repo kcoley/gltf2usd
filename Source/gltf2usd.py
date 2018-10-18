@@ -11,20 +11,21 @@ import numpy
 import os
 import re
 import shutil
-
 from io import BytesIO
-
-from gltf2loader import GLTF2Loader, PrimitiveMode, TextureWrap, MinFilter, MagFilter
 
 from PIL import Image
 
 from pxr import Usd, UsdGeom, Sdf, UsdShade, Gf, UsdSkel, Vt, Ar, UsdUtils
 
-from gltf2loader import GLTF2Loader, PrimitiveMode, TextureWrap, MinFilter, MagFilter
-from gltf2usdUtils import GLTF2USDUtils
-from usd_material import USDMaterial
+from _gltf2usd.gltf2loader import GLTF2Loader, PrimitiveMode, TextureWrap, MinFilter, MagFilter
+from _gltf2usd.gltf2usdUtils import GLTF2USDUtils
+from _gltf2usd.usd_material import USDMaterial
 
-class GLTF2USD:
+from _gltf2usd import version
+
+__version__ = version.Version.get_version_name()
+
+class GLTF2USD(object):
     """
     Class for converting glTF 2.0 models to Pixar's USD format.  Currently openly supports .gltf files
     with non-embedded data and exports to .usda .
@@ -57,6 +58,8 @@ class GLTF2USD:
         self.use_euler_rotation = use_euler_rotation
 
         self.output_dir = os.path.dirname(os.path.abspath(usd_file))
+        if self.verbose:
+            self.logger.info("Converting {0} to {1}".format(gltf_file, usd_file))
 
         #if usdz file is desired, change to usdc file
         if usd_file.endswith('usdz'):
@@ -699,8 +702,12 @@ def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False, 
             usd.logger.info('created {}'.format(usdc_file))
 
         if usd_file.endswith('.usdz'):
+            #change to directory of the generated usd files to avoid issues with 
+            # relative paths with CreateNewUsdzPackage
+            os.chdir(os.path.dirname(usdc_file))
+            usd_file = ntpath.basename(usd_file)
             r = Ar.GetResolver()
-            resolved_asset = r.Resolve(usdc_file)
+            resolved_asset = r.Resolve(ntpath.basename(usdc_file))
             context = r.CreateDefaultContextForAsset(resolved_asset)
 
             success = check_usd_compliance(resolved_asset, arkit=args.arkit)
@@ -721,7 +728,7 @@ def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False, 
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Convert glTF to USD')
+    parser = argparse.ArgumentParser(description='Convert glTF to USD: v{}'.format(__version__))
     parser.add_argument('--gltf', '-g', action='store', dest='gltf_file', help='glTF file (in .gltf format)', required=True)
     parser.add_argument('--fps', action='store', dest='fps', help='The frames per second for the animations', type=float, default=24.0)
     parser.add_argument('--output', '-o', action='store', dest='usd_file', help='destination to store generated .usda file', required=True)
@@ -732,4 +739,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.gltf_file:
-        convert_to_usd(args.gltf_file, args.usd_file, args.fps, args.scale, args.arkit, args.verbose, args.use_euler_rotation)
+        convert_to_usd(os.path.expanduser(args.gltf_file), os.path.expanduser(args.usd_file), args.fps, args.scale, args.arkit, args.verbose, args.use_euler_rotation)

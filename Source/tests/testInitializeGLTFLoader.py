@@ -5,8 +5,8 @@ import os
 from os import path
 sys.path.append( path.dirname( path.dirname( path.abspath(__file__) ) ) )
 
-from gltf2loader import GLTF2Loader
-from gltf2usdUtils import GLTF2USDUtils
+from _gltf2usd.gltf2loader import GLTF2Loader
+from _gltf2usd.gltf2usdUtils import GLTF2USDUtils
 
 class TestInitializeGLTFLoader(unittest.TestCase):
     def setUp(self):
