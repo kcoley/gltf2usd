@@ -28,13 +28,16 @@ class Node:
     def get_name(self):
         return self._name
 
-    def get_translation(self):
+    @property
+    def translation(self):
         return self._translation
 
-    def get_rotation(self):
+    @property
+    def rotation(self):
         return self._rotation
 
-    def get_scale(self):
+    @property
+    def scale(self):
         return self._scale
 
     def get_children(self):
@@ -43,7 +46,8 @@ class Node:
     def get_parent(self):
         return self._parent
 
-    def get_matrix(self):
+    @property
+    def matrix(self):
         return self._matrix
 
     def get_index(self):
