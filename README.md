@@ -26,7 +26,7 @@ This tool currently only works on glTF 2.0 files, based on the core glTF 2.0 spe
 
 ## Dependencies:
 
-- You will need to initially have [USD v18.09](https://github.com/PixarAnimationStudios/USD) installed on your system
+- You will need to initially have [USD v18.09 or v18.11](https://github.com/PixarAnimationStudios/USD) installed on your system
 and have the Python modules built
     - Linux users will need to build the tools themselves, or use [AnimalLogic's USD Docker Container](https://github.com/AnimalLogic/docker-usd) (recommended for non-CentOS users)
     - macOS users can use Apple's [Prebuilt USD Toolkit](https://developer.apple.com/go/?id=python-usd-library). Make sure you add the USD dir to your `PYTHONPATH`
