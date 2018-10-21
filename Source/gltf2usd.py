@@ -453,22 +453,24 @@ class GLTF2USD(object):
 
     def _convert_animation_to_usd(self, gltf_node, usd_node):
         animations = self.gltf_loader.get_animations()
+        if (len(animations) > 0): # only support first animation group
+            animation = animations[0]
 
-        for animation in animations:
-            animation_channels = animation.get_animation_channels_for_node(gltf_node)
+            for animation in animations:
+                animation_channels = animation.get_animation_channels_for_node(gltf_node)
 
-            if len(animation_channels) > 0:
-                total_max_time = -999
-                total_min_time = 999
+                if len(animation_channels) > 0:
+                    total_max_time = -999
+                    total_min_time = 999
 
-                min_max_time = self._create_usd_animation2(usd_node, gltf_node, animation_channels)
+                    min_max_time = self._create_usd_animation2(usd_node, gltf_node, animation_channels)
 
-                total_max_time = max(total_max_time, min_max_time.max)
-                total_min_time = min(total_min_time, min_max_time.min)
+                    total_max_time = max(total_max_time, min_max_time.max)
+                    total_min_time = min(total_min_time, min_max_time.min)
 
-                self.stage.SetStartTimeCode(total_min_time * self.fps)
-                self.stage.SetEndTimeCode(total_max_time * self.fps)
-                self.stage.SetTimeCodesPerSecond(self.fps)
+                    self.stage.SetStartTimeCode(total_min_time * self.fps)
+                    self.stage.SetEndTimeCode(total_max_time * self.fps)
+                    self.stage.SetTimeCodesPerSecond(self.fps)
 
     def _create_keyframe_transform_node(self, gltf_node, animation_channels, input_sample):
         matrix = gltf_node.matrix

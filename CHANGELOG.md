@@ -21,3 +21,7 @@
  - Reformatted changelog
  - Switched some methods to properties
  - Increment version
+ 
+## 0.1.2 (2018-10-21)
+**Fixed Bugs:**
+- Use only first animation group
