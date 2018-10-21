@@ -34,7 +34,7 @@ class GLTF2USDUtils:
             Matrix-- USD matrix
         """
 
-        matrix = node.get_matrix()
+        matrix = node.matrix
         if (matrix != None):
             return Gf.Matrix4d(
                 matrix[0], matrix[1], matrix[2], matrix[3],
@@ -43,13 +43,13 @@ class GLTF2USDUtils:
                 matrix[12], matrix[13], matrix[14], matrix[15]
             )
         else:
-            translation = node.get_translation()
+            translation = node.translation
             usd_translation = Gf.Vec3f(translation[0], translation[1], translation[2])
 
-            rotation = node.get_rotation()
+            rotation = node.rotation
             usd_rotation = Gf.Quatf(rotation[3], rotation[0], rotation[1], rotation[2])
 
-            scale = node.get_scale()
+            scale = node.scale
             usd_scale = Gf.Vec3h(scale[0], scale[1], scale[2])
 
         return UsdSkel.MakeTransform(usd_translation, usd_rotation, usd_scale)

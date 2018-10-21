@@ -131,13 +131,15 @@ class AnimationChannel:
         self._target = AnimationChannelTarget(channel_entry['target'])
         self._animation = animation
 
-    def get_target(self):
+    @property
+    def target(self):
         return self._target
 
     def get_sampler_index(self):
         return self._sampler_index
 
-    def get_sampler(self):
+    @property
+    def sampler(self):
         return self._animation._samplers[self._sampler_index]
 
 
