@@ -99,13 +99,17 @@ class GLTF2USD(object):
             xform_name {str} -- USD xform name
         """        
         xformPrim = UsdGeom.Xform.Define(self.stage, '{0}/{1}'.format(usd_xform.GetPath(), GLTF2USDUtils.convert_to_usd_friendly_node_name(node.get_name())))
-        xformPrim.AddTransformOp().Set(self._compute_rest_matrix(node))
+        
+        if self._node_has_animations(node):
+            self._convert_animation_to_usd(node, xformPrim)
+        else:
+            xformPrim.AddTransformOp().Set(self._compute_rest_matrix(node))
+            
+
         mesh = node.get_mesh()
         if mesh != None:
             usd_mesh = self._convert_mesh_to_xform(mesh, xformPrim, node)
-
-        self._convert_animation_to_usd(node, xformPrim)
-        
+                
         children = node.get_children()
 
         for child in children:
@@ -435,6 +439,16 @@ class GLTF2USD(object):
             usd_material = USDMaterial(self.stage, scope, i, self.gltf_loader)
             usd_material.convert_material_to_usd_preview_surface(material, self.output_dir)
             self.usd_materials.append(usd_material)
+
+    def _node_has_animations(self, gltf_node):
+        animations = self.gltf_loader.get_animations()
+        for animation in animations:
+            animation_channels = animation.get_animation_channels_for_node(gltf_node)
+            if len(animation_channels) > 0:
+                return True
+
+
+        return False
 
 
     def _convert_animation_to_usd(self, gltf_node, usd_node):
@@ -790,4 +804,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.gltf_file:
-        convert_to_usd(os.path.expanduser(args.gltf_file), os.path.expanduser(args.usd_file), args.fps, args.scale, args.arkit, args.verbose, args.use_euler_rotation)
+        convert_to_usd(os.path.expanduser(args.gltf_file), os.path.abspath(os.path.expanduser(args.usd_file)), args.fps, args.scale, args.arkit, args.verbose, args.use_euler_rotation)
