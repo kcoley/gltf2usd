@@ -20,3 +20,4 @@
  - Convert usd file path to absolute path on load  
  - Reformatted changelog
  - Switched some methods to properties
+ - Increment version
