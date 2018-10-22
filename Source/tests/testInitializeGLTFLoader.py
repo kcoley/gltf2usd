@@ -82,13 +82,13 @@ class TestInitializeGLTFLoader(unittest.TestCase):
         node = self.loader.get_nodes()[2]
         animation_channels = animation.get_animation_channels_for_node(node)
         print('\n\n\n\n\n\n\n')
-        print([animation_channel.get_target().get_path() for animation_channel in animation_channels])
+        print([animation_channel.target.get_path() for animation_channel in animation_channels])
 
     def test_get_animation_sampler_input_data(self):
         animation = self.loader.get_animations()[0]
         node = self.loader.get_nodes()[2]
         animation_channel = animation.get_animation_channel_for_node_and_path(node, 'rotation')
-        input_data = animation_channel.get_sampler().get_input_data()
+        input_data = animation_channel.sampler.get_input_data()
 
         print('input:\n\n\n\n\n\n\n')
         print(input_data)
@@ -97,7 +97,7 @@ class TestInitializeGLTFLoader(unittest.TestCase):
         animation = self.loader.get_animations()[0]
         node = self.loader.get_nodes()[2]
         animation_channel = animation.get_animation_channel_for_node_and_path(node, 'rotation')
-        output_data = animation_channel.get_sampler().get_output_data()
+        output_data = animation_channel.sampler.get_output_data()
         print('output:\n\n\n\n\n\n\n')
         print(output_data)
 

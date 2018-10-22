@@ -40,7 +40,8 @@ class NormalTexture(Texture):
         super(NormalTexture, self).__init__(normal_texture_entry, gltf_loader)
         self._scale = normal_texture_entry['scale'] if ('scale' in normal_texture_entry) else 1.0
 
-    def get_scale(self):
+    @property
+    def scale(self):
         return self._scale
 
 class OcclusionTexture(Texture):
@@ -48,7 +49,8 @@ class OcclusionTexture(Texture):
         super(OcclusionTexture, self).__init__(occlusion_texture_entry, gltf_loader)
         self._strength = occlusion_texture_entry['strength'] if ('strength' in occlusion_texture_entry) else 1.0
 
-    def get_strength(self):
+    @property
+    def strength(self):
         return self._strength
 
 class PbrMetallicRoughness:

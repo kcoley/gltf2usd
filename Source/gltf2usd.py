@@ -99,13 +99,17 @@ class GLTF2USD(object):
             xform_name {str} -- USD xform name
         """        
         xformPrim = UsdGeom.Xform.Define(self.stage, '{0}/{1}'.format(usd_xform.GetPath(), GLTF2USDUtils.convert_to_usd_friendly_node_name(node.get_name())))
-        xformPrim.AddTransformOp().Set(self._compute_rest_matrix(node))
+        
+        if self._node_has_animations(node):
+            self._convert_animation_to_usd(node, xformPrim)
+        else:
+            xformPrim.AddTransformOp().Set(self._compute_rest_matrix(node))
+            
+
         mesh = node.get_mesh()
         if mesh != None:
             usd_mesh = self._convert_mesh_to_xform(mesh, xformPrim, node)
-
-        self._convert_animation_to_usd(node, xformPrim)
-        
+                
         children = node.get_children()
 
         for child in children:
@@ -211,20 +215,20 @@ class GLTF2USD(object):
         anim_channel = gltf_animation.get_animation_channel_for_node_and_path(gltf_joint, path)
         if not anim_channel:
             if path == 'translation':
-                return gltf_joint.get_translation()
+                return gltf_joint.translation
             elif path == 'rotation':
-                gltf_rotation = gltf_joint.get_rotation()
+                gltf_rotation = gltf_joint.rotation
                 usd_rotation = Gf.Quatf(gltf_rotation[3], gltf_rotation[0], gltf_rotation[1], gltf_rotation[2])
                 return usd_rotation
             elif path == 'scale':
-                return gltf_joint.get_scale()
+                return gltf_joint.scale
 
         else:
             if path == 'rotation':
-                rotation = anim_channel.get_sampler().get_interpolated_output_data(time_sample)
+                rotation = anim_channel.sampler.get_interpolated_output_data(time_sample)
                 return rotation
             elif path == 'scale' or path =='translation':
-                return anim_channel.get_sampler().get_interpolated_output_data(time_sample)
+                return anim_channel.sampler.get_interpolated_output_data(time_sample)
             else:
                 raise Exception('unsupported animation type: {}'.format(path))
                 
@@ -436,25 +440,60 @@ class GLTF2USD(object):
             usd_material.convert_material_to_usd_preview_surface(material, self.output_dir)
             self.usd_materials.append(usd_material)
 
+    def _node_has_animations(self, gltf_node):
+        animations = self.gltf_loader.get_animations()
+        for animation in animations:
+            animation_channels = animation.get_animation_channels_for_node(gltf_node)
+            if len(animation_channels) > 0:
+                return True
+
+
+        return False
+
 
     def _convert_animation_to_usd(self, gltf_node, usd_node):
         animations = self.gltf_loader.get_animations()
+        if (len(animations) > 0): # only support first animation group
+            animation = animations[0]
 
-        for animation in animations:
-            animation_channels = animation.get_animation_channels_for_node(gltf_node)
+            for animation in animations:
+                animation_channels = animation.get_animation_channels_for_node(gltf_node)
 
-            if len(animation_channels) > 0:
-                total_max_time = -999
-                total_min_time = 999
-                for channel in animation_channels:
-                    min_max_time = self._create_usd_animation(usd_node, channel)
+                if len(animation_channels) > 0:
+                    total_max_time = -999
+                    total_min_time = 999
+
+                    min_max_time = self._create_usd_animation2(usd_node, gltf_node, animation_channels)
+
                     total_max_time = max(total_max_time, min_max_time.max)
                     total_min_time = min(total_min_time, min_max_time.min)
 
-                self.stage.SetStartTimeCode(total_min_time * self.fps)
-                self.stage.SetEndTimeCode(total_max_time * self.fps)
-                self.stage.SetTimeCodesPerSecond(self.fps)
+                    self.stage.SetStartTimeCode(total_min_time * self.fps)
+                    self.stage.SetEndTimeCode(total_max_time * self.fps)
+                    self.stage.SetTimeCodesPerSecond(self.fps)
 
+    def _create_keyframe_transform_node(self, gltf_node, animation_channels, input_sample):
+        matrix = gltf_node.matrix
+        if matrix:
+            translation = Gf.Vec3f()
+            rotation = Gf.Quatf()
+            scale = Gf.Vec3h()
+            usd_matrix = self._convert_to_usd_matrix(matrix)
+            UsdSkel.DecomposeTransform(usd_matrix, translation, rotation, scale)
+        else:
+            translation = Gf.Vec3f(gltf_node.translation)
+            rotation = Gf.Quatf(gltf_node.rotation[3], gltf_node.rotation[0], gltf_node.rotation[1], gltf_node.rotation[2])
+            scale = Gf.Vec3h(gltf_node.scale)
+
+        for animation_channel in animation_channels:
+            if animation_channel.target == 'translation':
+                translation = animation_channel.sampler.get_interpolated_output_data(input_sample)
+            elif animation_channel.target == 'rotation':
+                rotation = animation_channel.sampler.get_interpolated_output_data(input_sample) 
+            elif animation_channel.target == 'scale':
+                scale = animation_channel.sampler.get_interpolated_output_data(input_sample) 
+
+        return UsdSkel.MakeTransform(translation, rotation, scale)
 
     def _convert_skin_to_usd(self, gltf_node, gltf_primitive, usd_node, usd_mesh):
         """Converts a glTF skin to a UsdSkel
@@ -551,7 +590,7 @@ class GLTF2USD(object):
         """
 
         xform_matrix = None
-        matrix = gltf_node.get_matrix()
+        matrix = gltf_node.matrix
         if matrix != None:
             xform_matrix = self._convert_to_usd_matrix(matrix)
             return xform_matrix
@@ -560,13 +599,13 @@ class GLTF2USD(object):
             usd_rotation = Gf.Quatf().GetIdentity()
             usd_translation = Gf.Vec3f(0,0,0)
 
-            scale = gltf_node.get_scale()
+            scale = gltf_node.scale
             usd_scale = Gf.Vec3h(scale[0], scale[1], scale[2])
 
-            rotation = gltf_node.get_rotation()
+            rotation = gltf_node.rotation
             usd_rotation = Gf.Quatf(rotation[3], rotation[0], rotation[1], rotation[2])
 
-            translation = gltf_node.get_translation()
+            translation = gltf_node.translation
             usd_translation = Gf.Vec3f(translation[0], translation[1], translation[2])
 
         return UsdSkel.MakeTransform(usd_translation, usd_rotation, usd_scale)
@@ -583,7 +622,7 @@ class GLTF2USD(object):
             [type] -- [description]
         """
 
-        sampler = animation_channel.get_sampler()
+        sampler = animation_channel.sampler
         
     
         max_time = int(round(sampler.get_input_max()[0] ))
@@ -596,6 +635,34 @@ class GLTF2USD(object):
 
         for i, keyframe in enumerate(numpy.arange(min_time, max_time, 1./self.fps)):
             convert_func(transform, keyframe, output_keyframes, i, num_values)
+
+        MinMaxTime = collections.namedtuple('MinMaxTime', ('max', 'min'))
+        return MinMaxTime(max=max_time, min=min_time)
+
+    def _create_usd_animation2(self, usd_node, gltf_node, animation_channels):
+        """Converts a glTF animation to a USD animation
+
+        Arguments:
+            usd_node {[type]} -- usd node
+            gltf_node {[type]} -- glTF node
+            animation_channel {AnimationMap} -- map of animation target path and animation sampler indices
+
+        Returns:
+            [type] -- [description]
+        """
+
+        max_time = -999
+        min_time = 999
+        for channel in animation_channels:
+            max_time = max(max_time, int(round(channel.sampler.get_input_max()[0])))
+            min_time = min(min_time, int(round(channel.sampler.get_input_min()[0])))
+
+
+        transform = usd_node.AddTransformOp(opSuffix='transform')
+
+        for i, keyframe in enumerate(numpy.arange(min_time, max_time, 1./self.fps)):
+            transform_node = self._create_keyframe_transform_node(gltf_node, animation_channels, keyframe)
+            transform.Set(transform_node, Usd.TimeCode(i))
 
         MinMaxTime = collections.namedtuple('MinMaxTime', ('max', 'min'))
         return MinMaxTime(max=max_time, min=min_time)
@@ -614,8 +681,8 @@ class GLTF2USD(object):
             [func] -- USD animation conversion function
         """
 
-        path = animation_channel.get_target().get_path()
-        animation_sampler = animation_channel.get_sampler()
+        path = animation_channel.target.get_path()
+        animation_sampler = animation_channel.sampler
 
         def convert_translation(transform, time, output, i, _):
             value = animation_sampler.get_interpolated_output_data(time)
@@ -739,4 +806,4 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.gltf_file:
-        convert_to_usd(os.path.expanduser(args.gltf_file), os.path.expanduser(args.usd_file), args.fps, args.scale, args.arkit, args.verbose, args.use_euler_rotation)
+        convert_to_usd(os.path.expanduser(args.gltf_file), os.path.abspath(os.path.expanduser(args.usd_file)), args.fps, args.scale, args.arkit, args.verbose, args.use_euler_rotation)

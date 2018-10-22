@@ -111,7 +111,7 @@ class USDPreviewSurface():
             self._normal.Set((0,0,1))
         else:
             destination = normal_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.RGB)
-            normal_scale = normal_texture.get_scale()
+            normal_scale = normal_texture.scale
             scale_factor = (normal_scale, normal_scale, normal_scale, 1.0)
             usd_uv_texture = USDUVTexture("normalTexture", self._stage, self._usd_material._usd_material, normal_texture, [self._st0, self._st1])
             usd_uv_texture._file_asset.Set(destination)
