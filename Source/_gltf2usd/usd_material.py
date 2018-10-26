@@ -143,7 +143,7 @@ class USDPreviewSurface():
             self._occlusion.Set(1.0)
         else:
             destination = occlusion_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.R)
-            occlusion_strength = occlusion_texture.get_strength()
+            occlusion_strength = occlusion_texture.strength
             strength_factor = (occlusion_strength, occlusion_strength, occlusion_strength, 1.0)
             usd_uv_texture = USDUVTexture("occlusionTexture", self._stage, self._usd_material._usd_material, occlusion_texture, [self._st0, self._st1])
             usd_uv_texture._file_asset.Set(destination)
