@@ -25,3 +25,7 @@
 ## 0.1.2 (2018-10-21)
 **Fixed Bugs:**
 - Use only first animation group
+
+## 0.1.3 (2018-10-26)
+**Fixed Bugs:**
+- Fixed strength
