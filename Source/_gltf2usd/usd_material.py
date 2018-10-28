@@ -226,12 +226,12 @@ class USDPreviewSurface():
     def _set_pbr_base_color(self, pbr_metallic_roughness):
         base_color_texture = pbr_metallic_roughness.get_base_color_texture()
         base_color_scale = pbr_metallic_roughness.get_base_color_factor()
+        self._opacity.Set(base_color_scale[3])
         if not base_color_texture:
             self._diffuse_color.Set(tuple(base_color_scale[0:3]))
-            self._opacity.Set(base_color_scale[3])
         else:
             destination = base_color_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.RGBA)
-            scale_factor = tuple([base_color_scale[0], base_color_scale[1], base_color_scale[2], base_color_scale[3]])
+            scale_factor = tuple(base_color_scale[0:3])
             usd_uv_texture = USDUVTexture("baseColorTexture", self._stage, self._usd_material._usd_material, base_color_texture, [self._st0, self._st1])
             usd_uv_texture._file_asset.Set(destination)
             usd_uv_texture._scale.Set(scale_factor)
