@@ -231,7 +231,7 @@ class USDPreviewSurface():
             self._diffuse_color.Set(tuple(base_color_scale[0:3]))
         else:
             destination = base_color_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.RGBA)
-            scale_factor = tuple(base_color_scale[0:3])
+            scale_factor = tuple(base_color_scale[0:4])
             usd_uv_texture = USDUVTexture("baseColorTexture", self._stage, self._usd_material._usd_material, base_color_texture, [self._st0, self._st1])
             usd_uv_texture._file_asset.Set(destination)
             usd_uv_texture._scale.Set(scale_factor)
