@@ -29,3 +29,7 @@
 ## 0.1.3 (2018-10-26)
 **Fixed Bugs:**
 - Fixed strength
+
+## 0.1.4 (2018-10-28)
+**Fixed Bugs:**
+- Opacity for base color factor is now used even wihout base color texture
