@@ -45,7 +45,7 @@ class USDPreviewSurface():
 
     def _initialize_material(self, material, usd_preview_surface_material):
         shader = material
-        self._use_specular_workflow = material.CreateInput('useSpecularWorkflow', Sdf.ValueTypeNames.Bool)
+        self._use_specular_workflow = material.CreateInput('useSpecularWorkflow', Sdf.ValueTypeNames.Int)
         self._use_specular_workflow.Set(False)
 
         self._surface_output = shader.CreateOutput('surface', Sdf.ValueTypeNames.Token)
@@ -287,7 +287,7 @@ class USDPreviewSurface():
         """
         material = UsdShade.Shader.Define(name, usd_material._stage, usd_material._material_path.AppendChild(self._name))
         material.CreateIdAttr('UsdPreviewSurface')
-        material.CreateInput('useSpecularWorkflow', Sdf.ValueTypeNames.Bool).Set(self._use_specular_workflow)
+        material.CreateInput('useSpecularWorkflow', Sdf.ValueTypeNames.Int).Set(self._use_specular_workflow)
         surface_output = material.CreateOutput('surface', Sdf.ValueTypeNames.Token)
         usd_material._usd_material_surface_output.ConnectToSource(surface_output)
         displacement_output = material.CreateOutput('displacement', Sdf.ValueTypeNames.Token)
