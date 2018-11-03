@@ -3,6 +3,7 @@ from enum import Enum
 from pxr import Gf, Sdf, UsdGeom, UsdShade
 
 from gltf2 import Material, GLTFImage
+from gltf2.Material import AlphaMode
 from gltf2loader import TextureWrap
 
 class USDMaterial():
@@ -156,7 +157,7 @@ class USDPreviewSurface():
     def _set_pbr_metallic_roughness(self, gltf_material):
         pbr_metallic_roughness = gltf_material.get_pbr_metallic_roughness()
         if (pbr_metallic_roughness):
-            self._set_pbr_base_color(pbr_metallic_roughness)
+            self._set_pbr_base_color(pbr_metallic_roughness, gltf_material.alpha_mode)
             self._set_pbr_metallic(pbr_metallic_roughness)
             self._set_pbr_roughness(pbr_metallic_roughness)
 
@@ -223,15 +224,24 @@ class USDPreviewSurface():
 
             
 
-    def _set_pbr_base_color(self, pbr_metallic_roughness):
+    def _set_pbr_base_color(self, pbr_metallic_roughness, alpha_mode):
         base_color_texture = pbr_metallic_roughness.get_base_color_texture()
         base_color_scale = pbr_metallic_roughness.get_base_color_factor()
-        self._opacity.Set(base_color_scale[3])
+        if AlphaMode(alpha_mode) != AlphaMode.OPAQUE:
+            if AlphaMode(alpha_mode) == AlphaMode.MASK:
+                print('Alpha Mask not supported in USDPreviewSurface!  Using Alpha Blend...')
+
+            self._opacity.Set(base_color_scale[3])
+
         if not base_color_texture:
             self._diffuse_color.Set(tuple(base_color_scale[0:3]))
         else:
-            destination = base_color_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.RGBA)
-            scale_factor = tuple(base_color_scale[0:4])
+            if AlphaMode(alpha_mode) == AlphaMode.OPAQUE:
+                destination = base_color_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.RGB)
+                scale_factor = (base_color_scale[0], base_color_scale[1], base_color_scale[2], 1.0)
+            else:
+                destination = base_color_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.RGBA)
+                scale_factor = tuple(base_color_scale[0:4])
             usd_uv_texture = USDUVTexture("baseColorTexture", self._stage, self._usd_material._usd_material, base_color_texture, [self._st0, self._st1])
             usd_uv_texture._file_asset.Set(destination)
             usd_uv_texture._scale.Set(scale_factor)

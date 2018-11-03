@@ -5,6 +5,11 @@ class TextureWrap(Enum):
     MIRRORED_REPEAT = 33648
     REPEAT = 10497
 
+class AlphaMode(Enum):
+    BLEND = 'BLEND'
+    MASK = 'MASK'
+    OPAQUE = 'OPAQUE'
+
 class Texture(object):
     def __init__(self, texture_entry, gltf_loader):
         index = 0
@@ -106,8 +111,10 @@ class Material:
         self._name = material_entry['name'] if ('name' in material_entry) else 'material_{}'.format(material_index)
         self._index = material_index
         self._double_sided = material_entry['doubleSided'] if ('doubleSided' in material_entry) else False
-
+        
         self._pbr_metallic_roughness = PbrMetallicRoughness(material_entry['pbrMetallicRoughness'], gltf_loader) if ('pbrMetallicRoughness' in material_entry) else None
+
+        self._alpha_mode = material_entry['alphaMode'] if ('alphaMode' in material_entry) else AlphaMode.OPAQUE
 
         self._normal_texture = NormalTexture(material_entry['normalTexture'], gltf_loader) if ('normalTexture' in material_entry) else None
         self._emissive_factor = material_entry['emissiveFactor'] if ('emissiveFactor' in material_entry) else [0,0,0]
@@ -120,6 +127,10 @@ class Material:
 
     def is_double_sided(self):
         return self._double_sided
+
+    @property
+    def alpha_mode(self):
+        return self._alpha_mode
 
     def get_index(self):
         return self._index

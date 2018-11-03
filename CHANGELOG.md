@@ -33,3 +33,12 @@
 ## 0.1.4 (2018-10-28)
 **Fixed Bugs:**
 - Opacity for base color factor is now used even wihout base color texture
+
+## 0.1.5 (2018-11-2)
+**Fixed Bugs:**
+- Fixed bug in using specular workflow (https://github.com/kcoley/gltf2usd/pull/92)
+
+**Changes:**
+- Added alpha mode to Material (https://github.com/kcoley/gltf2usd/issues/88)
+- If opacity is set in glTF, overwrite the alpha to 1 on USD export.  
+- Alpha mask is not supported in glTF so a warning is displayed and defaults to alpha blend
