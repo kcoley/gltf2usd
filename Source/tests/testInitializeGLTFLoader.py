@@ -16,7 +16,7 @@ class TestInitializeGLTFLoader(unittest.TestCase):
     def test_get_nodes(self):
         nodes = self.loader.get_nodes()
         for node in nodes:
-            print(node.get_parent())
+            print(node.parent)
 
     def test_get_scenes(self):
         scenes = self.loader.get_scenes()
@@ -54,11 +54,11 @@ class TestInitializeGLTFLoader(unittest.TestCase):
         joints = skin.get_joints()
 
         for joint in joints:
-            print(joint.get_name())
+            print(joint.name)
 
     def test_get_root_skin_joint(self):
         skin = self.loader.get_skins()[0]
-        root_joints = skin.get_root_joints()
+        root_joints = skin.root_joints
 
     def test_skin_get_inverse_bind_matrices(self):
         skin = self.loader.get_skins()[0]
@@ -66,7 +66,7 @@ class TestInitializeGLTFLoader(unittest.TestCase):
 
     def test_convert_node_name_to_usd_friendly_name(self):
         node = self.loader.get_nodes()[0]
-        GLTF2USDUtils.convert_to_usd_friendly_node_name(node.get_name())
+        GLTF2USDUtils.convert_to_usd_friendly_node_name(node.name)
 
     def test_convert_node_transform_to_rest_matrix(self):
         node = self.loader.get_nodes()[0]

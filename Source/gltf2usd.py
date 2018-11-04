@@ -85,7 +85,7 @@ class GLTF2USD(object):
         main_scene = self.gltf_loader.get_main_scene()
 
         nodes = main_scene.get_nodes()
-        root_nodes = [node for node in nodes if node.get_parent() == None]
+        root_nodes = [node for node in nodes if node.parent == None]
         for node in root_nodes:
             self._convert_node_to_xform(node, parent_transform)
 
@@ -98,7 +98,7 @@ class GLTF2USD(object):
             node_index {int} -- glTF node index
             xform_name {str} -- USD xform name
         """        
-        xformPrim = UsdGeom.Xform.Define(self.stage, '{0}/{1}'.format(usd_xform.GetPath(), GLTF2USDUtils.convert_to_usd_friendly_node_name(node.get_name())))
+        xformPrim = UsdGeom.Xform.Define(self.stage, '{0}/{1}'.format(usd_xform.GetPath(), GLTF2USDUtils.convert_to_usd_friendly_node_name(node.name)))
         
         if self._node_has_animations(node):
             self._convert_animation_to_usd(node, xformPrim)
@@ -128,8 +128,8 @@ class GLTF2USD(object):
         """
 
         # create skeleton  
-        root_joints = gltf_skin.get_root_joints()
-        root_joint_names = [GLTF2USDUtils.convert_to_usd_friendly_node_name(root_joint.get_name()) for root_joint in root_joints]
+        root_joints = gltf_skin.root_joints
+        root_joint_names = [GLTF2USDUtils.convert_to_usd_friendly_node_name(root_joint.name) for root_joint in root_joints]
 
         skeleton = None
 
@@ -143,9 +143,6 @@ class GLTF2USD(object):
         if len(root_joints) > 1:
             matrix = Gf.Matrix4d()
             matrix.SetIdentity()
-            usd_joint_names.insert(0, '__root__')
-            gltf_bind_transforms.insert(0, matrix)
-            gltf_rest_transforms.insert(0, matrix)
 
         skeleton.CreateJointsAttr().Set(usd_joint_names)
         skeleton.CreateBindTransformsAttr(gltf_bind_transforms)
@@ -238,11 +235,11 @@ class GLTF2USD(object):
             return GLTF2USDUtils.convert_to_usd_friendly_node_name(self._joint_hierarchy_name_map[gltf_joint])
         
         joint = gltf_joint
-        joint_name_stack = [GLTF2USDUtils.convert_to_usd_friendly_node_name(joint.get_name())]
+        joint_name_stack = [GLTF2USDUtils.convert_to_usd_friendly_node_name(joint.name)]
 
-        while joint.get_parent() != None and joint not in root_joints:
-            joint = joint.get_parent()
-            joint_name_stack.append(GLTF2USDUtils.convert_to_usd_friendly_node_name(joint.get_name()))
+        while joint.parent != None and joint not in root_joints:
+            joint = joint.parent
+            joint_name_stack.append(GLTF2USDUtils.convert_to_usd_friendly_node_name(joint.name))
 
         joint_name = ''
         while len(joint_name_stack) > 0:
@@ -505,8 +502,8 @@ class GLTF2USD(object):
         """
         skel_binding_api = UsdSkel.BindingAPI(usd_mesh)
         gltf_skin = gltf_node.get_skin()
-        gltf_joint_names = [GLTF2USDUtils.convert_to_usd_friendly_node_name(joint.get_name()) for joint in gltf_skin.get_joints()]
-        usd_joint_names = [Sdf.Path(self._get_usd_joint_hierarchy_name(joint, gltf_skin.get_root_joints())) for joint in gltf_skin.get_joints()]
+        gltf_joint_names = [GLTF2USDUtils.convert_to_usd_friendly_node_name(joint.name) for joint in gltf_skin.get_joints()]
+        usd_joint_names = [Sdf.Path(self._get_usd_joint_hierarchy_name(joint, gltf_skin.root_joints)) for joint in gltf_skin.get_joints()]
         skeleton = self._create_usd_skeleton(gltf_skin, usd_node, usd_joint_names)
         skeleton_animation = self._create_usd_skeleton_animation(gltf_skin, skeleton, usd_joint_names)
 
