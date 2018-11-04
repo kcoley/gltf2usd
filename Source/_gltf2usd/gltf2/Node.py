@@ -25,7 +25,8 @@ class Node:
         self._children_indices = node_dict['children'] if ('children' in node_dict) else []
         self._children = []
 
-    def get_name(self):
+    @property
+    def name(self):
         return self._name
 
     @property
@@ -43,7 +44,8 @@ class Node:
     def get_children(self):
         return self._children
 
-    def get_parent(self):
+    @property
+    def parent(self):
         return self._parent
 
     @property
@@ -58,3 +60,7 @@ class Node:
 
     def get_skin(self):
         return self._skin
+
+    @property
+    def index(self):
+        return self._node_index
