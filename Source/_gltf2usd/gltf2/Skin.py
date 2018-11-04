@@ -25,13 +25,10 @@ class Skin:
         root_joints = Set()
         for joint_index in skin_entry['joints']:
             joint = gltf2_loader.nodes[joint_index]
+            parent = joint.parent
+            if parent == None or parent.index not in skin_entry['joints']:
+                root_joints.add(joint)
 
-            parent = joint.get_parent()
-            while (parent != None):
-                joint = parent
-                parent = joint.get_parent()
-
-            root_joints.add(joint)
 
         return list(root_joints)
 
@@ -44,5 +41,12 @@ class Skin:
     def get_joint_names(self):
         pass
 
-    def get_root_joints(self):
+    @property
+    def root_joints(self):
+        """The root joints of the skeleton
+        
+        Returns:
+            [[Node]] -- list of root joints for the skeleton
+        """
+
         return self._root_skeletons

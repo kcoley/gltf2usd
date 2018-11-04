@@ -42,3 +42,7 @@
 - Added alpha mode to Material (https://github.com/kcoley/gltf2usd/issues/88)
 - If opacity is set in glTF, overwrite the alpha to 1 on USD export.  
 - Alpha mask is not supported in glTF so a warning is displayed and defaults to alpha blend
+
+## 0.1.6 (2018-11-3)
+**Fixed Bugs:**
+- Fixed bug in joint names to allow support for animations for iOS (https://github.com/kcoley/gltf2usd/issues/79)
