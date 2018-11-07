@@ -46,3 +46,7 @@
 ## 0.1.6 (2018-11-3)
 **Fixed Bugs:**
 - Fixed bug in joint names to allow support for animations for iOS (https://github.com/kcoley/gltf2usd/issues/79)
+
+## 0.1.7 (2018-11-6)
+**Changes:**
+- When using alpha opaque, the base color texture is cloned
