@@ -50,3 +50,7 @@
 ## 0.1.7 (2018-11-6)
 **Changes:**
 - When using alpha opaque, the base color texture is cloned
+
+## 0.1.8 (2018-11-8)
+**Changes:**
+- If a normal texture has only one channel, the channel is applied to RGB as a new texture
