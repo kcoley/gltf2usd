@@ -82,7 +82,7 @@ class TestInitializeGLTFLoader(unittest.TestCase):
         node = self.loader.get_nodes()[2]
         animation_channels = animation.get_animation_channels_for_node(node)
         print('\n\n\n\n\n\n\n')
-        print([animation_channel.target.get_path() for animation_channel in animation_channels])
+        print([animation_channel.target.path for animation_channel in animation_channels])
 
     def test_get_animation_sampler_input_data(self):
         animation = self.loader.get_animations()[0]

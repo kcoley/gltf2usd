@@ -121,8 +121,8 @@ class AnimationChannelTarget:
     def __init__(self, animation_channel_target_entry):
         self._node_index = animation_channel_target_entry['node']
         self._path = animation_channel_target_entry['path']
-
-    def get_path(self):
+    @property
+    def path(self):
         return self._path
 
 class AnimationChannel:
