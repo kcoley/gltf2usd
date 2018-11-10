@@ -45,7 +45,14 @@ class GLTFImage(object):
         if img.mode == 'P':
             img = img.convert('RGBA')
         img_channels = img.split()
+        if len(img_channels) == 1: #distribute grayscale image across rgb
+            img = Image.merge('RGB', (img_channels[0], img_channels[0], img_channels[0]))
+            img_channels = img.split()
         if channels == ImageColorChannels.RGB:
+            if img.mode == "RGBA": #Make a copy and add opaque 
+                file_name = '{0}_{1}'.format('RGB', file_name)
+                destination = os.path.join(output_dir, file_name)
+
             img = Image.merge('RGB', (img_channels[0], img_channels[1], img_channels[2]))
         elif channels == ImageColorChannels.RGBA:
             img = original_img.convert('RGBA')
