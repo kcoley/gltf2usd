@@ -482,11 +482,11 @@ class GLTF2USD(object):
             scale = Gf.Vec3h(gltf_node.scale)
 
         for animation_channel in animation_channels:
-            if animation_channel.target == 'translation':
+            if animation_channel.target.path == 'translation':  
                 translation = animation_channel.sampler.get_interpolated_output_data(input_sample)
-            elif animation_channel.target == 'rotation':
+            elif animation_channel.target.path == 'rotation':
                 rotation = animation_channel.sampler.get_interpolated_output_data(input_sample) 
-            elif animation_channel.target == 'scale':
+            elif animation_channel.target.path == 'scale':
                 scale = animation_channel.sampler.get_interpolated_output_data(input_sample) 
 
         return UsdSkel.MakeTransform(translation, rotation, scale)
@@ -650,8 +650,8 @@ class GLTF2USD(object):
         max_time = -999
         min_time = 999
         for channel in animation_channels:
-            max_time = max(max_time, int(round(channel.sampler.get_input_max()[0])))
-            min_time = min(min_time, int(round(channel.sampler.get_input_min()[0])))
+            max_time = max(max_time, channel.sampler.get_input_max()[0])
+            min_time = min(min_time, channel.sampler.get_input_min()[0])
 
 
         transform = usd_node.AddTransformOp(opSuffix='transform')
@@ -677,7 +677,7 @@ class GLTF2USD(object):
             [func] -- USD animation conversion function
         """
 
-        path = animation_channel.target.get_path()
+        path = animation_channel.target.path
         animation_sampler = animation_channel.sampler
 
         def convert_translation(transform, time, output, i, _):

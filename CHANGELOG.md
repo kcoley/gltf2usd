@@ -54,3 +54,7 @@
 ## 0.1.8 (2018-11-8)
 **Changes:**
 - If a normal texture has only one channel, the channel is applied to RGB as a new texture
+
+## 0.1.9 (2018-11-10)
+**Fixed Bugs:**
+- Fixed a bug with transform animations not getting exported
