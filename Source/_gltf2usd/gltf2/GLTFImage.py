@@ -15,7 +15,9 @@ class ImageColorChannels(Enum):
     A = 'A'
 
 class GLTFImage(object):
-    def __init__(self, image_entry, image_index, gltf_loader):
+    def __init__(self, image_entry, image_index, gltf_loader, optimize_textures=False):
+        self._optimize_textures = optimize_textures
+
         if image_entry['uri'].startswith('data:image'):
             uri_data = image_entry['uri'].split(',')[1]
             img = Image.open(BytesIO(base64.b64decode(uri_data)))
@@ -23,7 +25,7 @@ class GLTFImage(object):
             # NOTE: image might not have a name
             self._name = image_entry['name'] if 'name' in image_entry else 'image_{}.{}'.format(image_index, img.format.lower())
             self._image_path = os.path.join(gltf_loader.root_dir, self._name)
-            img.save(self._image_path)
+            img.save(self._image_path, optimize=self._optimize_textures)
         else:
             self._uri = image_entry['uri']
             self._name = ntpath.basename(self._uri)
@@ -65,7 +67,7 @@ class GLTFImage(object):
 
         if destination.endswith('jpg') or destination.endswith('.jpeg'):
             img = img.convert('RGB')
-        img.save(destination)
+        img.save(destination, optimize=self._optimize_textures)
         
         return file_name 
 
