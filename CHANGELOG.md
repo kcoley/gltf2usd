@@ -58,3 +58,7 @@
 ## 0.1.9 (2018-11-10)
 **Fixed Bugs:**
 - Fixed a bug with transform animations not getting exported
+
+## 0.1.10 (2018-11-12)
+**Changes:**
+- Added optimize-textures flag to help reduce texture size when generating usdz files
