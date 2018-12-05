@@ -66,3 +66,4 @@
 ## 0.1.11 (2018-12-4)
 **Changes:**
 - Set vertex colors for Color4 (vertex color alpha currently not supported)
+- Resolves (https://github.com/kcoley/gltf2usd/issues/113)
