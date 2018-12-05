@@ -62,3 +62,7 @@
 ## 0.1.10 (2018-11-12)
 **Changes:**
 - Added optimize-textures flag to help reduce texture size when generating usdz files
+
+## 0.1.11 (2018-12-4)
+**Changes:**
+- Set vertex colors for Color4 (vertex color alpha currently not supported)

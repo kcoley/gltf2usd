@@ -310,7 +310,13 @@ class GLTF2USD(object):
 
             if attribute_name == 'COLOR_0':
                 prim_var = UsdGeom.PrimvarsAPI(mesh)
-                colors = prim_var.CreatePrimvar('displayColor', Sdf.ValueTypeNames.Color3f, 'vertex').Set(attribute.get_data())
+                print(attribute.accessor_type)
+                data = attribute.get_data()
+                if attribute.accessor_type == 'VEC4':
+                    print('Vertex color alpha currently not supported.  Defaulting to vertex color without alpha.')
+                    data = [Gf.Vec3f(entry[0:3]) for entry in attribute.get_data()]
+
+                colors = prim_var.CreatePrimvar('displayColor', Sdf.ValueTypeNames.Color3f, 'vertex').Set(data)
 
             if attribute_name == 'TEXCOORD_0':
                 data = attribute.get_data()

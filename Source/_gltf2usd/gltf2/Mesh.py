@@ -10,14 +10,20 @@ class PrimitiveModeType(Enum):
     TRIANGLE_FAN = 6
 
 class PrimitiveAttribute:
-    def __init__(self, attribute_name, attribute_data, min_value=None, max_value=None):
+    def __init__(self, attribute_name, attribute_data, accessor_type, min_value=None, max_value=None):
         self._attribute_type = attribute_name
         self._attribute_data = attribute_data
+        self._accessor_type = accessor_type
         self._min_value = min_value
         self._max_value = max_value
 
-    def get_type(self):
+    @property
+    def attribute_type(self):
         return self._attribute_type
+
+    @property
+    def accessor_type(self):
+        return self._accessor_type
 
     def get_min_value(self):
         return self._min_value
@@ -62,7 +68,7 @@ class Primitive:
                 min_value = accessor['min'] if ('min' in accessor) else None
                 max_value = accessor['max'] if ('max' in accessor) else None
 
-                self._attributes[attribute_name] = PrimitiveAttribute(attribute_name, data, min_value, max_value)
+                self._attributes[attribute_name] = PrimitiveAttribute(attribute_name, data, accessor['type'], min_value, max_value)
 
         self._indices = self._get_indices(primitive_entry, gltf_loader)
         self._mode = PrimitiveModeType(primitive_entry['mode']) if ('mode' in primitive_entry) else PrimitiveModeType.TRIANGLES
