@@ -37,7 +37,7 @@ class GLTF2USD(object):
         TextureWrap.REPEAT: 'repeat',
     }
 
-    def __init__(self, gltf_file, usd_file, fps, scale, verbose=False, use_euler_rotation=False):
+    def __init__(self, gltf_file, usd_file, fps, scale, verbose=False, use_euler_rotation=False, optimize_textures=False):
         """Initializes the glTF to USD converter
 
         Arguments:
@@ -52,7 +52,7 @@ class GLTF2USD(object):
         self.logger.addHandler(console_handler)
 
         self.fps = fps
-        self.gltf_loader = GLTF2Loader(gltf_file)
+        self.gltf_loader = GLTF2Loader(gltf_file, optimize_textures)
         self.verbose = verbose
         self.scale = scale
         self.use_euler_rotation = use_euler_rotation
@@ -310,7 +310,13 @@ class GLTF2USD(object):
 
             if attribute_name == 'COLOR_0':
                 prim_var = UsdGeom.PrimvarsAPI(mesh)
-                colors = prim_var.CreatePrimvar('displayColor', Sdf.ValueTypeNames.Color3f, 'vertex').Set(attribute.get_data())
+                print(attribute.accessor_type)
+                data = attribute.get_data()
+                if attribute.accessor_type == 'VEC4':
+                    print('Vertex color alpha currently not supported.  Defaulting to vertex color without alpha.')
+                    data = [Gf.Vec3f(entry[0:3]) for entry in attribute.get_data()]
+
+                colors = prim_var.CreatePrimvar('displayColor', Sdf.ValueTypeNames.Color3f, 'vertex').Set(data)
 
             if attribute_name == 'TEXCOORD_0':
                 data = attribute.get_data()
@@ -740,7 +746,7 @@ def check_usd_compliance(rootLayer, arkit=False):
     return len(errors) == 0 and len(failedChecks) == 0
 
 
-def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False, use_euler_rotation=False):
+def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False, use_euler_rotation=False, optimize_textures=False):
     """Converts a glTF file to USD
 
     Arguments:
@@ -751,7 +757,7 @@ def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False, 
         verbose {bool} -- [description] (default: {False})
     """
 
-    usd = GLTF2USD(gltf_file=gltf_file, usd_file=usd_file, fps=fps, scale=scale, verbose=verbose, use_euler_rotation=use_euler_rotation)
+    usd = GLTF2USD(gltf_file=gltf_file, usd_file=usd_file, fps=fps, scale=scale, verbose=verbose, use_euler_rotation=use_euler_rotation, optimize_textures=optimize_textures)
     if usd.stage:
         asset = usd.stage.GetRootLayer()
         usd.logger.info('Conversion complete!')
@@ -799,7 +805,8 @@ if __name__ == '__main__':
     parser.add_argument('--scale', '-s', action='store', dest='scale', help='Scale the resulting USDA', type=float, default=100)
     parser.add_argument('--arkit', action='store_true', dest='arkit', help='Check USD with ARKit compatibility before making USDZ file')
     parser.add_argument('--use-euler-rotation', action='store_true', dest='use_euler_rotation', help='sets euler rotations for node animations instead of quaternion rotations')
+    parser.add_argument('--optimize-textures', action='store_true', dest='optimize_textures', default=False, help='Specifies if image file size should be optimized and reduced at the expense of longer export time')
     args = parser.parse_args()
 
     if args.gltf_file:
-        convert_to_usd(os.path.expanduser(args.gltf_file), os.path.abspath(os.path.expanduser(args.usd_file)), args.fps, args.scale, args.arkit, args.verbose, args.use_euler_rotation)
+        convert_to_usd(os.path.expanduser(args.gltf_file), os.path.abspath(os.path.expanduser(args.usd_file)), args.fps, args.scale, args.arkit, args.verbose, args.use_euler_rotation, args.optimize_textures)
