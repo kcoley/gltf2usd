@@ -1,10 +1,12 @@
 import base64
 from io import BytesIO
+import math
 import ntpath
 import os
 
 from enum import Enum
 from PIL import Image
+import numpy as np
 
 class ImageColorChannels(Enum):
     RGB = 'RGB'
@@ -39,7 +41,7 @@ class GLTFImage(object):
     def get_image_path(self):
         return self._image_path
 
-    def write_to_directory(self, output_dir, channels, texture_prefix):
+    def write_to_directory(self, output_dir, channels, texture_prefix, offset = [0,0], scale = [1,1], rotation = 0):
         file_name = '{0}_{1}'.format(texture_prefix, ntpath.basename(self._name)) if texture_prefix else ntpath.basename(self._name)
         destination = os.path.join(output_dir, file_name)
         original_img = Image.open(self._image_path)
@@ -67,8 +69,33 @@ class GLTFImage(object):
 
         if destination.endswith('jpg') or destination.endswith('.jpeg'):
             img = img.convert('RGB')
+
+        #apply texture transform
+        texture_transform_matrix = self._texture_transform_matrix(offset, scale, rotation)
+        img = img.transform((img.width, img.height), Image.AFFINE, (
+            texture_transform_matrix[0,0], texture_transform_matrix[0,1], texture_transform_matrix[0,2],
+            texture_transform_matrix[1,0], texture_transform_matrix[1,1], texture_transform_matrix[1,2]
+            )
+        )
+        
+        
+        
         img.save(destination, optimize=self._optimize_textures)
         
         return file_name 
+
+    def _texture_transform_matrix(self, offset, scale, rotation):
+        translation_matrix = np.matrix([[1,0,offset[0]], [0,1,offset[1]], [0, 0, 1]])
+        rotation_matrix = np.matrix([[math.cos(rotation), math.sin(rotation), 0], [-math.sin(rotation), math.cos(rotation), 0], [0,0,1]])
+        scale_matrix = np.matrix(
+            [
+                [scale[0], 0, 0], 
+                [0, scale[1], 0], 
+                [0, 0, 1]
+            ]
+        )
+        transform_matrix = np.matmul(np.matmul(translation_matrix, rotation_matrix), scale_matrix)
+
+        return transform_matrix
 
 
