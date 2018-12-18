@@ -57,11 +57,12 @@ class Texture(object):
 class NormalTexture(Texture):
     def __init__(self, normal_texture_entry, gltf_loader):
         super(NormalTexture, self).__init__(normal_texture_entry, gltf_loader)
-        self._scale = normal_texture_entry['scale'] if ('scale' in normal_texture_entry) else 1.0
+        self._scale = normal_texture_entry['scale'] if ('scale' in normal_texture_entry) else 1.0      
 
     @property
     def scale(self):
         return self._scale
+
 
 class OcclusionTexture(Texture):
     def __init__(self, occlusion_texture_entry, gltf_loader):

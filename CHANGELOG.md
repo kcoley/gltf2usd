@@ -67,3 +67,8 @@
 **Changes:**
 - Set vertex colors for Color4 (vertex color alpha currently not supported)
 - Resolves (https://github.com/kcoley/gltf2usd/issues/113)
+
+## 0.1.12 (2018-12-17)
+**Changes:**
+- Generate a new texture if the KHR_texture_transform extension is used
+- Resolves (https://github.com/kcoley/gltf2usd/issues/104)

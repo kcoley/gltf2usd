@@ -94,7 +94,7 @@ class GLTF2Loader:
     """A very simple glTF loader.  It is essentially a utility to load data from accessors
     """
 
-    def __init__(self, gltf_file, optimize_textures):
+    def __init__(self, gltf_file, optimize_textures=False):
         """Initializes the glTF 2.0 loader
 
         Arguments:
