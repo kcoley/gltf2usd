@@ -9,7 +9,8 @@ This tool currently only works on glTF 2.0 files, based on the core glTF 2.0 spe
 ## Supported Features
 - glTF nodes are mapped to USD `Xform`
 - glTF `PbrMetallicRoughnessMaterial` is mapped to `USDPreviewSurface`
-- glTF `PbrSpecularGlossiness` extension
+- glTF [KHR_materials_pbrSpecularGlossiness](https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_materials_pbrSpecularGlossiness) extension
+- glTF [KHR_texture_transform](https://github.com/KhronosGroup/glTF/tree/master/extensions/2.0/Khronos/KHR_texture_transform) extension (new textures are generated at the expense of a longer export time)
 - glTF Skeletal animation is mapped to `UsdSkel`
 - glTF node animations are supported
 - Currently supports `.gltf` conversion to `.usd`, `.usda`, `.usdc`, and `.usdz`
@@ -17,7 +18,7 @@ This tool currently only works on glTF 2.0 files, based on the core glTF 2.0 spe
 
 ## Currently not implemented:
 - `.glb` files
-- glTF extensions (except `PbrSpecularGlossiness`)
+- glTF extensions (except `KHR_materials_pbrSpecularGlossiness` and `KHR_texture_transform`)
 - Primitive modes (other than triangles)
 
 ## Note:

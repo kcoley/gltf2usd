@@ -21,6 +21,16 @@ class Texture(object):
         sampler = gltf_loader.json_data['samplers'][texture_entry['sampler']] if ('sampler' in texture_entry) else (gltf_loader.json_data['samplers'][0] if ('samplers' in gltf_loader.json_data) else {})
         self._wrap_s = TextureWrap(sampler['wrapS']) if ('wrapS' in sampler) else TextureWrap.REPEAT
         self._wrap_t = TextureWrap(sampler['wrapT']) if ('wrapT' in sampler) else TextureWrap.REPEAT
+        self._extensions = {}
+        self._tt_offset = [0.0,0.0]
+        self._tt_scale = [1.0,1.0]
+        self._tt_rotation = 0.0
+
+        if 'extensions' in texture_entry and 'KHR_texture_transform' in texture_entry['extensions']:
+            self._extensions['KHR_texture_transform'] = KHRTextureTransform(texture_entry['extensions']['KHR_texture_transform'])
+            self._tt_offset = self._extensions['KHR_texture_transform']._offset
+            self._tt_scale = self._extensions['KHR_texture_transform']._scale
+            self._tt_rotation = self._extensions['KHR_texture_transform']._rotation
 
     def get_name(self):
         return self._name
@@ -35,19 +45,24 @@ class Texture(object):
         return self._wrap_t
 
     def write_to_directory(self, output_directory, channels, texture_prefix=""):
-        return self._image.write_to_directory(output_directory, channels, texture_prefix)
+        return self._image.write_to_directory(output_directory, channels, texture_prefix, self._tt_offset, self._tt_scale, self._tt_rotation)
 
     def get_texcoord_index(self):
         return self._texcoord_index
 
+    @property
+    def extensions(self):
+        return self._extensions
+
 class NormalTexture(Texture):
     def __init__(self, normal_texture_entry, gltf_loader):
         super(NormalTexture, self).__init__(normal_texture_entry, gltf_loader)
-        self._scale = normal_texture_entry['scale'] if ('scale' in normal_texture_entry) else 1.0
+        self._scale = normal_texture_entry['scale'] if ('scale' in normal_texture_entry) else 1.0      
 
     @property
     def scale(self):
         return self._scale
+
 
 class OcclusionTexture(Texture):
     def __init__(self, occlusion_texture_entry, gltf_loader):
@@ -82,7 +97,7 @@ class PbrMetallicRoughness:
     def get_roughness_factor(self):
         return self._roughness_factor
         
-class PbrSpecularGlossiness:
+class PbrSpecularGlossiness(object):
     def __init__(self, pbr_specular_glossiness_entry, gltf_loader):
         self._diffuse_factor = pbr_specular_glossiness_entry['diffuseFactor'] if ('diffuseFactor' in pbr_specular_glossiness_entry) else [1.0,1.0,1.0,1.0]
         self._diffuse_texture = Texture(pbr_specular_glossiness_entry['diffuseTexture'], gltf_loader) if ('diffuseTexture' in pbr_specular_glossiness_entry) else None
@@ -104,6 +119,24 @@ class PbrSpecularGlossiness:
 
     def get_diffuse_texture(self):
         return self._diffuse_texture
+
+class KHRTextureTransform(object):
+    def __init__(self, khr_texture_transform_entry):
+        self._offset = khr_texture_transform_entry['offset'] if 'offset' in khr_texture_transform_entry else [0.0,0.0]
+        self._scale = khr_texture_transform_entry['scale'] if 'scale' in khr_texture_transform_entry else [1.0,1.0]
+        self._rotation = khr_texture_transform_entry['rotation'] if 'rotation' in khr_texture_transform_entry else 0.0
+
+    @property
+    def offset(self):
+        return self._offset
+
+    @property
+    def scale(self):
+        return self._scale
+
+    @property
+    def rotation(self):
+        return self._rotation
 
 
 class Material:
