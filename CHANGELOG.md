@@ -72,3 +72,10 @@
 **Changes:**
 - Generate a new texture if the KHR_texture_transform extension is used
 - Resolves (https://github.com/kcoley/gltf2usd/issues/104)
+
+## 0.1.13 (2018-12-23)
+**Fixed Bugs:**
+- Fixed a bug where normalized ubytes and ushorts were not being normalized on load
+**Changes:**
+- Added support for loading embedded images in bufferviews
+- Resolves (https://github.com/kcoley/gltf2usd/issues/123)

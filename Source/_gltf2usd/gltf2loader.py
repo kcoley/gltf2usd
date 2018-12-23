@@ -269,6 +269,7 @@ class GLTF2Loader:
 
         data_type = ''
         data_type_size = 4
+        normalize_divisor = 1.0 #used if the value needs to be normalized
         if accessor_component_type == AccessorComponentType.FLOAT:
             data_type = 'f'
             data_type_size = 4
@@ -278,9 +279,11 @@ class GLTF2Loader:
         elif accessor_component_type == AccessorComponentType.UNSIGNED_SHORT:
             data_type = 'H'
             data_type_size = 2
+            normalize_divisor = 65535.0 if 'normalized' in accessor and accessor['normalized'] == True else 1.0 
         elif accessor_component_type == AccessorComponentType.UNSIGNED_BYTE:
             data_type = 'B'
             data_type_size = 1
+            normalize_divisor = 255.0 if 'normalized' in accessor and accessor['normalized'] == True else 1.0
         else:
             raise Exception('unsupported accessor component type!')
 
@@ -289,7 +292,8 @@ class GLTF2Loader:
             for j in range(0, accessor_type_size):
                 x = offset + j * accessor_component_type_size
                 window = buffer_data[x:x + data_type_size]
-                entries.append(struct.unpack(data_type, window)[0])
+                entries.append((struct.unpack(data_type, window)[0])/normalize_divisor)
+
             if len(entries) > 1:
                 data_arr.append(tuple(entries))
             else:

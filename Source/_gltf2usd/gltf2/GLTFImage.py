@@ -19,19 +19,31 @@ class ImageColorChannels(Enum):
 class GLTFImage(object):
     def __init__(self, image_entry, image_index, gltf_loader, optimize_textures=False):
         self._optimize_textures = optimize_textures
+        if 'bufferView' in image_entry:
+            #get image data from bufferview
+            bufferview = gltf_loader.json_data['bufferViews'][image_entry['bufferView']]
+            if 'byteOffset' in bufferview:
+                buffer = gltf_loader.json_data['buffers'][bufferview['buffer']]
 
-        if image_entry['uri'].startswith('data:image'):
-            uri_data = image_entry['uri'].split(',')[1]
-            img = Image.open(BytesIO(base64.b64decode(uri_data)))
-
-            # NOTE: image might not have a name
-            self._name = image_entry['name'] if 'name' in image_entry else 'image_{}.{}'.format(image_index, img.format.lower())
-            self._image_path = os.path.join(gltf_loader.root_dir, self._name)
-            img.save(self._image_path, optimize=self._optimize_textures)
+                img_base64 = buffer['uri'].split(',')[1]
+                img = Image.open(BytesIO(base64.b64decode(img_base64)))
+                # NOTE: image might not have a name
+                self._name = image_entry['name'] if 'name' in image_entry else 'image_{}.{}'.format(image_index, img.format.lower())
+                self._image_path = os.path.join(gltf_loader.root_dir, self._name)
+                img.save(self._image_path, optimize=self._optimize_textures)
         else:
-            self._uri = image_entry['uri']
-            self._name = ntpath.basename(self._uri)
-            self._image_path = os.path.join(gltf_loader.root_dir, self._uri)
+            if image_entry['uri'].startswith('data:image'):
+                uri_data = image_entry['uri'].split(',')[1]
+                img = Image.open(BytesIO(base64.b64decode(uri_data)))
+
+                # NOTE: image might not have a name
+                self._name = image_entry['name'] if 'name' in image_entry else 'image_{}.{}'.format(image_index, img.format.lower())
+                self._image_path = os.path.join(gltf_loader.root_dir, self._name)
+                img.save(self._image_path, optimize=self._optimize_textures)
+            else:
+                self._uri = image_entry['uri']
+                self._name = ntpath.basename(self._uri)
+                self._image_path = os.path.join(gltf_loader.root_dir, self._uri)
 
         #decode unicode name to ascii
         if isinstance(self._name, unicode):

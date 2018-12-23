@@ -310,7 +310,6 @@ class GLTF2USD(object):
 
             if attribute_name == 'COLOR_0':
                 prim_var = UsdGeom.PrimvarsAPI(mesh)
-                print(attribute.accessor_type)
                 data = attribute.get_data()
                 if attribute.accessor_type == 'VEC4':
                     print('Vertex color alpha currently not supported.  Defaulting to vertex color without alpha.')
@@ -409,9 +408,17 @@ class GLTF2USD(object):
                 image_name = ''
 
                 # save data-uri textures
-                if image['uri'].startswith('data:image'):
-                    uri_data = image['uri'].split(',')[1]
-                    img = Image.open(BytesIO(base64.b64decode(uri_data)))
+                if 'bufferView' in image or image['uri'].startswith('data:image'):
+                    img = None
+                    if 'bufferView' in image:
+                        buffer_view = self.gltf_loader.json_data['bufferViews'][image['bufferView']]
+                        buffer = self.gltf_loader.json_data['buffers'][buffer_view['buffer']]
+                        uri_data = buffer['uri'].split(',')[1]
+                        img = Image.open(BytesIO(base64.b64decode(uri_data)))
+
+                    elif image['uri'].startswith('data:image'):
+                        uri_data = image['uri'].split(',')[1]
+                        img = Image.open(BytesIO(base64.b64decode(uri_data)))
 
                     # NOTE: image might not have a name
                     image_name = image['name'] if 'name' in image else 'image{}.{}'.format(i, img.format.lower())
