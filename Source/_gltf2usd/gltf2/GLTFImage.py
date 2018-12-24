@@ -26,7 +26,10 @@ class GLTFImage(object):
                 buffer = gltf_loader.json_data['buffers'][bufferview['buffer']]
 
                 img_base64 = buffer['uri'].split(',')[1]
-                img = Image.open(BytesIO(base64.b64decode(img_base64)))
+                buff = BytesIO()
+                buff.write(base64.b64decode(img_base64))
+                buff.seek(bufferview['byteOffset'])
+                img = Image.open(BytesIO(buff.read(bufferview['byteLength'])))
                 # NOTE: image might not have a name
                 self._name = image_entry['name'] if 'name' in image_entry else 'image_{}.{}'.format(image_index, img.format.lower())
                 self._image_path = os.path.join(gltf_loader.root_dir, self._name)
