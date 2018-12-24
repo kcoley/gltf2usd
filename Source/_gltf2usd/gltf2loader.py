@@ -5,8 +5,6 @@ import json
 import os
 import re
 import struct
-import base64
-import re
 
 import gltf2usdUtils
 
