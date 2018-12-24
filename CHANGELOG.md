@@ -79,3 +79,9 @@
 **Changes:**
 - Added support for loading embedded images in bufferviews
 - Resolves (https://github.com/kcoley/gltf2usd/issues/123)
+
+## 0.1.14 (2018-12-23)
+**Fixed Bugs:**
+- Fixed a bug where multiple embedded textures within the same buffer were not extracted properly
+**Changes:**
+- Resolves (https://github.com/kcoley/gltf2usd/issues/125)

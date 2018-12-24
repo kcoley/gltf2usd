@@ -413,8 +413,11 @@ class GLTF2USD(object):
                     if 'bufferView' in image:
                         buffer_view = self.gltf_loader.json_data['bufferViews'][image['bufferView']]
                         buffer = self.gltf_loader.json_data['buffers'][buffer_view['buffer']]
-                        uri_data = buffer['uri'].split(',')[1]
-                        img = Image.open(BytesIO(base64.b64decode(uri_data)))
+                        img_base64 = buffer['uri'].split(',')[1]
+                        buff = BytesIO()
+                        buff.write(base64.b64decode(img_base64))
+                        buff.seek(buffer_view['byteOffset'])
+                        img = Image.open(BytesIO(buff.read(buffer_view['byteLength'])))
 
                     elif image['uri'].startswith('data:image'):
                         uri_data = image['uri'].split(',')[1]
