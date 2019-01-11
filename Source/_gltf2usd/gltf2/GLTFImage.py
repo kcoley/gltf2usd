@@ -170,8 +170,8 @@ class GLTFImage(object):
             for row in range(new_img.size[1]):
                 res = np.matmul(texture_transform_matrix, np.array([col/float(img.width),row/float(img.height),1]))
 
-                c = int(round(_normalized_texcoord(res[0,0]) * height))
-                r = int(round(_normalized_texcoord(res[0,1]) * width))
+                c = min(int(round(_normalized_texcoord(res[0,0]) * height)), img.height - 1)
+                r = min(int(round(_normalized_texcoord(res[0,1]) * width)), img.width - 1)
                 pixel = source_image_pixels[r * width + c]
                 pixels[col, row] = pixel
 
