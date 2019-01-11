@@ -742,7 +742,7 @@ class GLTF2USD(object):
 
 def check_usd_compliance(rootLayer, arkit=False):
     #An API change in v18.11 changed the sytax for UsdUtils.ComplianceChecker...
-    if Usd.GetMinorVersion() >= 18 and Usd.GetPatchVersion() >= 11:
+    if Usd.GetMinorVersion() > 18 or (Usd.GetMinorVersion() == 18 and Usd.GetPatchVersion() >= 11):
         checker = UsdUtils.ComplianceChecker(arkit=arkit, skipARKitRootLayerCheck=False)
         checker.CheckCompliance(rootLayer)
     else:
