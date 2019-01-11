@@ -85,3 +85,8 @@
 - Fixed a bug where multiple embedded textures within the same buffer were not extracted properly
 **Changes:**
 - Resolves (https://github.com/kcoley/gltf2usd/issues/125)
+
+## 0.1.15 (2019-01-11)
+**Fixed Bugs:**
+- Fix for throwing when USD minor version is 19 and path version is 1 [spiderworm](https://github.com/kcoley/gltf2usd/pull/130)
+- Fixed bug where texture transform generation would fail on index out of range (https://github.com/kcoley/gltf2usd/issues/131)
