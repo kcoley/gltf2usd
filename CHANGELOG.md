@@ -90,3 +90,7 @@
 **Fixed Bugs:**
 - Fix for throwing when USD minor version is 19 and path version is 1 [spiderworm](https://github.com/kcoley/gltf2usd/pull/130)
 - Fixed bug where texture transform generation would fail on index out of range (https://github.com/kcoley/gltf2usd/issues/131)
+
+## 0.1.16 (2019-01-17)
+**Changes:**
+- Add option to toggle texture transform texture generation (enable `--generate_texture_transform_texture`, disable `--no-generate_texture_transform_texture`) (https://github.com/kcoley/gltf2usd/issues/133)

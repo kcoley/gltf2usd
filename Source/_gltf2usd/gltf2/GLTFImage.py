@@ -17,7 +17,8 @@ class ImageColorChannels(Enum):
     A = 'A'
 
 class GLTFImage(object):
-    def __init__(self, image_entry, image_index, gltf_loader, optimize_textures=False):
+    def __init__(self, image_entry, image_index, gltf_loader, optimize_textures=False, generate_texture_transform_texture=True):
+        self._generate_texture_transform_texture = generate_texture_transform_texture
         self._optimize_textures = optimize_textures
         if 'bufferView' in image_entry:
             #get image data from bufferview
@@ -88,11 +89,14 @@ class GLTFImage(object):
 
         #apply texture transform if necessary
         if offset != [0,0] or scale != [1,1] or rotation != 0:
-            texture_transform_prefix_name= 'o{0}{1}s{2}{3}r{4}_'.format(offset[0], offset[1], scale[0], scale[1], rotation).replace('.', '_')
-            file_name = texture_transform_prefix_name + file_name
-            destination = os.path.join(output_dir, file_name)
-            print('Generating texture transformed image "{}" ...'.format(file_name))
-            img = self._transform_image(img, translate=offset, scale=scale, rotation=rotation)
+            if not self._generate_texture_transform_texture:
+                print('Texture transform texture modification has been disabled, so the resulting USD may look incorrect')
+            else:
+                texture_transform_prefix_name= 'o{0}{1}s{2}{3}r{4}_'.format(offset[0], offset[1], scale[0], scale[1], rotation).replace('.', '_')
+                file_name = texture_transform_prefix_name + file_name
+                destination = os.path.join(output_dir, file_name)
+                print('Generating texture transformed image "{}" ...'.format(file_name))
+                img = self._transform_image(img, translate=offset, scale=scale, rotation=rotation)
 
         img.save(destination, optimize=self._optimize_textures)
         

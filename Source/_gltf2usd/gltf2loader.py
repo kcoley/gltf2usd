@@ -92,7 +92,7 @@ class GLTF2Loader:
     """A very simple glTF loader.  It is essentially a utility to load data from accessors
     """
 
-    def __init__(self, gltf_file, optimize_textures=False):
+    def __init__(self, gltf_file, optimize_textures=False, generate_texture_transform_texture=True):
         """Initializes the glTF 2.0 loader
 
         Arguments:
@@ -106,6 +106,7 @@ class GLTF2Loader:
 
         self.root_dir = os.path.dirname(gltf_file)
         self._optimize_textures = optimize_textures
+        self._generate_texture_transform_texture = generate_texture_transform_texture
         try:
             with codecs.open(gltf_file, encoding='utf-8', errors='strict') as f:
                 self.json_data = json.load(f)
@@ -131,7 +132,7 @@ class GLTF2Loader:
         self._images = []
         if 'images' in self.json_data:
             for i, image_entry in enumerate(self.json_data['images']):
-                self._images.append(GLTFImage.GLTFImage(image_entry, i, self, self._optimize_textures))
+                self._images.append(GLTFImage.GLTFImage(image_entry, i, self, self._optimize_textures, self._generate_texture_transform_texture))
 
 
     def _initialize_nodes(self):
