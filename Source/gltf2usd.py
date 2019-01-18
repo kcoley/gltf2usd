@@ -37,7 +37,7 @@ class GLTF2USD(object):
         TextureWrap.REPEAT: 'repeat',
     }
 
-    def __init__(self, gltf_file, usd_file, fps, scale, verbose=False, use_euler_rotation=False, optimize_textures=False):
+    def __init__(self, gltf_file, usd_file, fps, scale, verbose=False, use_euler_rotation=False, optimize_textures=False, generate_texture_transform_texture=True):
         """Initializes the glTF to USD converter
 
         Arguments:
@@ -52,7 +52,7 @@ class GLTF2USD(object):
         self.logger.addHandler(console_handler)
 
         self.fps = fps
-        self.gltf_loader = GLTF2Loader(gltf_file, optimize_textures)
+        self.gltf_loader = GLTF2Loader(gltf_file, optimize_textures, generate_texture_transform_texture)
         self.verbose = verbose
         self.scale = scale
         self.use_euler_rotation = use_euler_rotation
@@ -756,7 +756,7 @@ def check_usd_compliance(rootLayer, arkit=False):
     return len(errors) == 0 and len(failedChecks) == 0
 
 
-def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False, use_euler_rotation=False, optimize_textures=False):
+def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False, use_euler_rotation=False, optimize_textures=False, generate_texture_transform_texture=True):
     """Converts a glTF file to USD
 
     Arguments:
@@ -767,7 +767,7 @@ def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False, 
         verbose {bool} -- [description] (default: {False})
     """
 
-    usd = GLTF2USD(gltf_file=gltf_file, usd_file=usd_file, fps=fps, scale=scale, verbose=verbose, use_euler_rotation=use_euler_rotation, optimize_textures=optimize_textures)
+    usd = GLTF2USD(gltf_file=gltf_file, usd_file=usd_file, fps=fps, scale=scale, verbose=verbose, use_euler_rotation=use_euler_rotation, optimize_textures=optimize_textures, generate_texture_transform_texture=generate_texture_transform_texture)
     if usd.stage:
         asset = usd.stage.GetRootLayer()
         usd.logger.info('Conversion complete!')
@@ -816,7 +816,11 @@ if __name__ == '__main__':
     parser.add_argument('--arkit', action='store_true', dest='arkit', help='Check USD with ARKit compatibility before making USDZ file')
     parser.add_argument('--use-euler-rotation', action='store_true', dest='use_euler_rotation', help='sets euler rotations for node animations instead of quaternion rotations')
     parser.add_argument('--optimize-textures', action='store_true', dest='optimize_textures', default=False, help='Specifies if image file size should be optimized and reduced at the expense of longer export time')
+    parser.add_argument('--generate_texture_transform_texture', dest='generate_texture_transform_texture', action='store_true', help='Enables texture transform texture generation')
+    parser.add_argument('--no-generate_texture_transform_texture', dest='generate_texture_transform_texture', action='store_false', help='Disables texture transform texture generation')
+    parser.set_defaults(generate_texture_transform_texture=True)
+
     args = parser.parse_args()
 
     if args.gltf_file:
-        convert_to_usd(os.path.expanduser(args.gltf_file), os.path.abspath(os.path.expanduser(args.usd_file)), args.fps, args.scale, args.arkit, args.verbose, args.use_euler_rotation, args.optimize_textures)
+        convert_to_usd(os.path.expanduser(args.gltf_file), os.path.abspath(os.path.expanduser(args.usd_file)), args.fps, args.scale, args.arkit, args.verbose, args.use_euler_rotation, args.optimize_textures, args.generate_texture_transform_texture)

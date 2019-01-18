@@ -62,6 +62,10 @@ optional arguments:
                         quaternion rotations
   --optimize-textures   Specifies if image file size should be optimized and
                         reduced at the expense of longer export time
+  --generate_texture_transform_texture
+                        Enables texture transform texture generation
+  --no-generate_texture_transform_texture
+                        Disables texture transform texture generation
 ```
 
 ## Sample usage:
