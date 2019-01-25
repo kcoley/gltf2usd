@@ -94,3 +94,7 @@
 ## 0.1.16 (2019-01-17)
 **Changes:**
 - Add option to toggle texture transform texture generation (enable `--generate_texture_transform_texture`, disable `--no-generate_texture_transform_texture`) (https://github.com/kcoley/gltf2usd/issues/133)
+
+## 0.1.17 (2019-01-24)
+**Changes:**
+- Preserve material names of gltf if present (https://github.com/kcoley/gltf2usd/issues/135)

@@ -7,8 +7,7 @@ from gltf2.Material import AlphaMode
 from gltf2loader import TextureWrap
 
 class USDMaterial():
-    def __init__(self, stage, material_scope, index, gltf2loader):
-        name = 'pbrmaterial_{}'.format(index)
+    def __init__(self, stage, name, material_scope, index, gltf2loader):
         self._gltf2loader = gltf2loader
         self._stage = stage
         self._material_scope = material_scope
@@ -36,7 +35,7 @@ class USDPreviewSurface():
         self._usd_material = usd_material
         self._output_directory = output_directory
         material_path = usd_material._usd_material.GetPath()
-        material = UsdShade.Shader.Define(self._stage, material_path.AppendChild('pbrMat'))
+        material = UsdShade.Shader.Define(self._stage, material_path.AppendChild(gltf_material.get_name()))
         material.CreateIdAttr('UsdPreviewSurface')
         self._initialize_material(material, self)
         self._initialize_from_gltf_material(gltf_material)
