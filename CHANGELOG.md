@@ -98,3 +98,8 @@
 ## 0.1.17 (2019-01-24)
 **Changes:**
 - Preserve material names of gltf if present (https://github.com/kcoley/gltf2usd/issues/135)
+
+## 0.1.18 (2019-01-28)
+**Changes:**
+- Cache accessor data to help with glTF import optimization (https://github.com/kcoley/gltf2usd/issues/137)
+- Adding logging for exporting mesh primitive data, behind the -v flag
