@@ -263,8 +263,14 @@ class GLTF2USD(object):
             node_index {int} -- glTF node index
         """
         #for each mesh primitive, create a USD mesh
+        primitive_count = 1
+        max_primitive_count = len(gltf_mesh.get_primitives())
         for primitive in gltf_mesh.get_primitives():
             self._convert_primitive_to_mesh(primitive, usd_node, gltf_node, gltf_mesh)
+            if self.verbose:
+                self.logger.debug('mesh {0}: primitive {1}/{2}'.format(gltf_mesh.name, primitive_count, max_primitive_count))
+
+            primitive_count += 1
 
     def _convert_primitive_to_mesh(self, gltf_primitive, usd_node, gltf_node, gltf_mesh):
         """

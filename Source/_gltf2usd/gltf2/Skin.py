@@ -11,7 +11,7 @@ class Skin:
     def _init_inverse_bind_matrices(self, gltf2_loader, skin_entry):
         inverse_bind_matrices = []
         if 'inverseBindMatrices' in skin_entry:
-            inverse_bind_matrices = gltf2_loader.get_data(accessor=gltf2_loader.json_data['accessors'][skin_entry['inverseBindMatrices']])
+            inverse_bind_matrices = gltf2_loader.get_data(accessor=gltf2_loader.json_data['accessors'][skin_entry['inverseBindMatrices']], accessor_index=skin_entry['inverseBindMatrices'])
         
         return inverse_bind_matrices
 

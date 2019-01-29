@@ -43,7 +43,7 @@ class PrimitiveTarget:
             accessor = gltf_loader.json_data['accessors'][target_entry[entry]]
             if self._name == None:
                 self._name = accessor['name'] if ('name' in accessor) else 'shape_{}'.format(target_index)
-            data = gltf_loader.get_data(accessor)
+            data = gltf_loader.get_data(accessor, target_entry[entry])
             self._attributes[entry] = data
 
     def get_attributes(self):
@@ -64,11 +64,12 @@ class Primitive:
             for attribute_name in primitive_entry['attributes']:
                 accessor_index = primitive_entry['attributes'][attribute_name]
                 accessor = gltf_loader.json_data['accessors'][accessor_index]
-                data = gltf_loader.get_data(accessor)
-                min_value = accessor['min'] if ('min' in accessor) else None
-                max_value = accessor['max'] if ('max' in accessor) else None
+                data = gltf_loader.get_data(accessor, accessor_index)
+                if data:
+                    min_value = accessor['min'] if ('min' in accessor) else None
+                    max_value = accessor['max'] if ('max' in accessor) else None
 
-                self._attributes[attribute_name] = PrimitiveAttribute(attribute_name, data, accessor['type'], min_value, max_value)
+                    self._attributes[attribute_name] = PrimitiveAttribute(attribute_name, data, accessor['type'], min_value, max_value)
 
         self._indices = self._get_indices(primitive_entry, gltf_loader)
         self._mode = PrimitiveModeType(primitive_entry['mode']) if ('mode' in primitive_entry) else PrimitiveModeType.TRIANGLES
@@ -85,7 +86,7 @@ class Primitive:
         if 'indices' in primitive_entry:
             accessor_index = primitive_entry['indices']
             accessor = gltf_loader.json_data['accessors'][accessor_index]
-            data = gltf_loader.get_data(accessor)
+            data = gltf_loader.get_data(accessor, accessor_index)
             return data
 
         else:
@@ -112,6 +113,7 @@ class Primitive:
 
 class Mesh:
     def __init__(self, mesh_entry, mesh_index, gltf_loader):
+        self._name = mesh_entry['name'] if 'name' in mesh_entry else 'mesh_{}'.format(mesh_index)
         self._primitives = []
         self._weights = []
         self._index = mesh_index
@@ -121,6 +123,10 @@ class Mesh:
             for i, primitive_entry in enumerate(mesh_entry['primitives']):
                 primitive = Primitive(primitive_entry, i, self, gltf_loader)
                 self._primitives.append(primitive)
+
+    @property
+    def name(self):
+        return self._name
 
     def get_weights(self):
         return self._weights

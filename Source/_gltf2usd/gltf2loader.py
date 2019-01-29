@@ -104,6 +104,7 @@ class GLTF2Loader:
         if not gltf_file.endswith('.gltf'):
             raise Exception('Can only accept .gltf files')
 
+        self._accessor_data_map = {}
         self.root_dir = os.path.dirname(gltf_file)
         self._optimize_textures = optimize_textures
         self._generate_texture_transform_texture = generate_texture_transform_texture
@@ -237,7 +238,10 @@ class GLTF2Loader:
         remainder = value % size
         return value if (remainder == 0) else (value + size - remainder)
 
-    def get_data(self, accessor):
+    def get_data(self, accessor, accessor_index):
+        if accessor_index in self._accessor_data_map.keys():
+            return self._accessor_data_map[accessor_index]
+
         bufferview = self.json_data['bufferViews'][accessor['bufferView']]
         buffer = self.json_data['buffers'][bufferview['buffer']]
         accessor_type = AccessorType(accessor['type'])
@@ -299,4 +303,5 @@ class GLTF2Loader:
                 data_arr.append(entries[0])
             offset = offset + bytestride
 
+        self._accessor_data_map[accessor_index] = data_arr
         return data_arr

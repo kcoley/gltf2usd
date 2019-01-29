@@ -45,14 +45,14 @@ class AnimationSampler:
     def get_input_data(self):
         if not self._input_data:
             accessor = self._animation._gltf_loader.json_data['accessors'][self._input_accessor_index]
-            self._input_data = self._animation._gltf_loader.get_data(accessor)
+            self._input_data = self._animation._gltf_loader.get_data(accessor, self._input_accessor_index)
         
         return self._input_data
 
     def get_output_data(self):
         if not self._output_data:
             accessor = self._animation._gltf_loader.json_data['accessors'][self._output_accessor_index]
-            self._output_data = self._animation._gltf_loader.get_data(accessor)
+            self._output_data = self._animation._gltf_loader.get_data(accessor, self._output_accessor_index)
         
         return self._output_data
         
