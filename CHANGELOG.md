@@ -103,3 +103,7 @@
 **Changes:**
 - Cache accessor data to help with glTF import optimization (https://github.com/kcoley/gltf2usd/issues/137)
 - Adding logging for exporting mesh primitive data, behind the -v flag
+
+## 0.1.19 (2019-01-30)
+**Changes:**
+- Prevent crash and display warning when glTF nodes have joints, but no skin (https://github.com/kcoley/gltf2usd/issues/140)

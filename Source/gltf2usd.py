@@ -524,42 +524,45 @@ class GLTF2USD(object):
         """
         skel_binding_api = UsdSkel.BindingAPI(usd_mesh)
         gltf_skin = gltf_node.get_skin()
-        gltf_joint_names = [GLTF2USDUtils.convert_to_usd_friendly_node_name(joint.name) for joint in gltf_skin.get_joints()]
-        usd_joint_names = [Sdf.Path(self._get_usd_joint_hierarchy_name(joint, gltf_skin.root_joints)) for joint in gltf_skin.get_joints()]
-        skeleton = self._create_usd_skeleton(gltf_skin, usd_node, usd_joint_names)
-        skeleton_animation = self._create_usd_skeleton_animation(gltf_skin, skeleton, usd_joint_names)
+        if not gltf_skin:
+            self.logger.warning('The glTF node has joints, but no skin associated with them')
+        else:
+            gltf_joint_names = [GLTF2USDUtils.convert_to_usd_friendly_node_name(joint.name) for joint in gltf_skin.get_joints()]
+            usd_joint_names = [Sdf.Path(self._get_usd_joint_hierarchy_name(joint, gltf_skin.root_joints)) for joint in gltf_skin.get_joints()]
+            skeleton = self._create_usd_skeleton(gltf_skin, usd_node, usd_joint_names)
+            skeleton_animation = self._create_usd_skeleton_animation(gltf_skin, skeleton, usd_joint_names)
 
-        parent_path = usd_node.GetPath()
+            parent_path = usd_node.GetPath()
 
-        bind_matrices = []
-        rest_matrices = []
+            bind_matrices = []
+            rest_matrices = []
 
-        skeleton_root = self.stage.GetPrimAtPath(parent_path)
-        skel_binding_api = UsdSkel.BindingAPI(usd_mesh)
-        skel_binding_api.CreateGeomBindTransformAttr(Gf.Matrix4d(((1,0,0,0),(0,1,0,0),(0,0,1,0),(0,0,0,1))))
-        skel_binding_api.CreateSkeletonRel().AddTarget(skeleton.GetPath())
-        if skeleton_animation:
-            skel_binding_api.CreateAnimationSourceRel().AddTarget(skeleton_animation.GetPath())
-        
-        bind_matrices = self._compute_bind_transforms(gltf_skin)
+            skeleton_root = self.stage.GetPrimAtPath(parent_path)
+            skel_binding_api = UsdSkel.BindingAPI(usd_mesh)
+            skel_binding_api.CreateGeomBindTransformAttr(Gf.Matrix4d(((1,0,0,0),(0,1,0,0),(0,0,1,0),(0,0,0,1))))
+            skel_binding_api.CreateSkeletonRel().AddTarget(skeleton.GetPath())
+            if skeleton_animation:
+                skel_binding_api.CreateAnimationSourceRel().AddTarget(skeleton_animation.GetPath())
+            
+            bind_matrices = self._compute_bind_transforms(gltf_skin)
 
-        primitive_attributes = gltf_primitive.get_attributes()
+            primitive_attributes = gltf_primitive.get_attributes()
 
-        if 'WEIGHTS_0' in primitive_attributes and 'JOINTS_0' in primitive_attributes:
-            total_vertex_weights = primitive_attributes['WEIGHTS_0'].get_data()
-            total_vertex_joints = primitive_attributes['JOINTS_0'].get_data()
-            total_joint_indices = []
-            total_joint_weights = []
+            if 'WEIGHTS_0' in primitive_attributes and 'JOINTS_0' in primitive_attributes:
+                total_vertex_weights = primitive_attributes['WEIGHTS_0'].get_data()
+                total_vertex_joints = primitive_attributes['JOINTS_0'].get_data()
+                total_joint_indices = []
+                total_joint_weights = []
 
-            for joint_indices, weights in zip(total_vertex_joints, total_vertex_weights):
-                for joint_index, weight in zip(joint_indices, weights):
-                    total_joint_indices.append(joint_index)
-                    total_joint_weights.append(weight)
+                for joint_indices, weights in zip(total_vertex_joints, total_vertex_weights):
+                    for joint_index, weight in zip(joint_indices, weights):
+                        total_joint_indices.append(joint_index)
+                        total_joint_weights.append(weight)
 
-            joint_indices_attr = skel_binding_api.CreateJointIndicesPrimvar(False, 4).Set(total_joint_indices)
-            total_joint_weights = Vt.FloatArray(total_joint_weights)
-            UsdSkel.NormalizeWeights(total_joint_weights, 4)
-            joint_weights_attr = skel_binding_api.CreateJointWeightsPrimvar(False, 4).Set(total_joint_weights)
+                joint_indices_attr = skel_binding_api.CreateJointIndicesPrimvar(False, 4).Set(total_joint_indices)
+                total_joint_weights = Vt.FloatArray(total_joint_weights)
+                UsdSkel.NormalizeWeights(total_joint_weights, 4)
+                joint_weights_attr = skel_binding_api.CreateJointWeightsPrimvar(False, 4).Set(total_joint_weights)
 
     
     def _compute_bind_transforms(self, gltf_skin):
