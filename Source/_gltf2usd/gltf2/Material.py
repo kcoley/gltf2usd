@@ -14,10 +14,9 @@ class Texture(object):
     def __init__(self, texture_entry, gltf_loader):
         index = 0
         self._name = texture_entry['name'] if ('name' in texture_entry) else 'texture_{}'.format(index)
-        self._image = gltf_loader.get_images()[texture_entry['index']]
+        self._image = gltf_loader.get_images()[gltf_loader.json_data['textures'][texture_entry['index']]['source']]
         self._index = texture_entry['index'] if ('index' in texture_entry) else 0
         self._texcoord_index = texture_entry['texCoord'] if ('texCoord' in texture_entry) else 0
-        self._gltf_image = gltf_loader.get_images()[self._index]
         sampler = gltf_loader.json_data['samplers'][texture_entry['sampler']] if ('sampler' in texture_entry) else (gltf_loader.json_data['samplers'][0] if ('samplers' in gltf_loader.json_data) else {})
         self._wrap_s = TextureWrap(sampler['wrapS']) if ('wrapS' in sampler) else TextureWrap.REPEAT
         self._wrap_t = TextureWrap(sampler['wrapT']) if ('wrapT' in sampler) else TextureWrap.REPEAT

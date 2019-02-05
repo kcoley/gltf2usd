@@ -107,3 +107,7 @@
 ## 0.1.19 (2019-01-30)
 **Changes:**
 - Prevent crash and display warning when glTF nodes have joints, but no skin (https://github.com/kcoley/gltf2usd/issues/140)
+
+## 0.1.20 (2019-02-04)
+**Fixed Bugs:**
+- Fixed a bug where textures were being indexed through images (https://github.com/kcoley/gltf2usd/issues/142)
