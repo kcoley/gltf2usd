@@ -111,3 +111,7 @@
 ## 0.1.20 (2019-02-04)
 **Fixed Bugs:**
 - Fixed a bug where textures were being indexed through images (https://github.com/kcoley/gltf2usd/issues/142)
+
+## 0.1.21 (2019-02-11)
+**Changes:**
+- Update rename regex to include square brackets (https://github.com/kcoley/gltf2usd/issues/144)
