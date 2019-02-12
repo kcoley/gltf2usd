@@ -3,7 +3,7 @@ class Version(object):
     """
     _major = 0
     _minor = 1
-    _patch = 20
+    _patch = 21
     @staticmethod
     def get_major_version_number():
         """Returns the major version
