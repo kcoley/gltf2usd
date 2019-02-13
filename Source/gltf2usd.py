@@ -455,7 +455,7 @@ class GLTF2USD(object):
         scope = UsdGeom.Scope.Define(self.stage, material_path_root)
 
         for i, material in enumerate(self.gltf_loader.get_materials()):
-            usd_material = USDMaterial(self.stage, material.get_name(), scope, i, self.gltf_loader)
+            usd_material = USDMaterial(self.stage, GLTF2USDUtils.convert_to_usd_friendly_node_name(material.get_name()), scope, i, self.gltf_loader)
             usd_material.convert_material_to_usd_preview_surface(material, self.output_dir)
             self.usd_materials.append(usd_material)
 
