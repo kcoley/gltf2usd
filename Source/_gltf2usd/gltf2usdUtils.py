@@ -13,9 +13,12 @@ class GLTF2USDUtils:
         Returns:
             str -- USD friendly name
         """
-        name = re.sub(r'\.|\b \b|-\b|:|\(|\)|[ \t]|-|\[|\]', '_', name) # replace '.',' ','-',':','/','\','(',')' and ':' with '_'
+        name = re.sub(r'\.|\b \b|-\b|:|\(|\)|[ \t]|-|\[|\]|\{|\}|#', '_', name) # replace '.',' ','-',':','/','\','(',')', '{', '}', '#' and ':' with '_'
         name = re.sub(r'^([\d]+)',r'm\1',name)
-        return re.sub('//', '/', name)
+        name = re.sub('//', '/', name)
+        if name.isdigit(): #if only digits, prepend a string
+            name = 'name_{}'.format(name)
+        return name
 
     @staticmethod
     def get_skin_rest_transforms(gltf_skin):

@@ -3,6 +3,7 @@ from enum import Enum
 from pxr import Gf, Sdf, UsdGeom, UsdShade
 
 from gltf2 import Material, GLTFImage
+from _gltf2usd.gltf2usdUtils import GLTF2USDUtils
 from gltf2.Material import AlphaMode
 from gltf2loader import TextureWrap
 
@@ -17,9 +18,9 @@ class USDMaterial():
         self._usd_material_surface_output = self._usd_material.CreateOutput("surface", Sdf.ValueTypeNames.Token)
         self._usd_material_displacement_output = self._usd_material.CreateOutput("displacement", Sdf.ValueTypeNames.Token)
 
-    def convert_material_to_usd_preview_surface(self, gltf_material, output_directory):
-        usd_preview_surface = USDPreviewSurface(self._stage, gltf_material, self, output_directory)
-        usd_preview_surface._name = gltf_material.get_name()
+    def convert_material_to_usd_preview_surface(self, gltf_material, output_directory, material_name):
+        usd_preview_surface = USDPreviewSurface(self._stage, gltf_material, self, output_directory, material_name)
+        usd_preview_surface._name = material_name
 
     def get_usd_material(self):
         return self._usd_material
@@ -30,12 +31,12 @@ class USDMaterial():
 class USDPreviewSurface():
     """Models a physically based surface for USD
     """
-    def __init__(self, stage, gltf_material, usd_material, output_directory):
+    def __init__(self, stage, gltf_material, usd_material, output_directory, material_name):
         self._stage = stage
         self._usd_material = usd_material
         self._output_directory = output_directory
         material_path = usd_material._usd_material.GetPath()
-        material = UsdShade.Shader.Define(self._stage, material_path.AppendChild(gltf_material.get_name()))
+        material = UsdShade.Shader.Define(self._stage, material_path.AppendChild(material_name))
         material.CreateIdAttr('UsdPreviewSurface')
         self._initialize_material(material, self)
         self._initialize_from_gltf_material(gltf_material)
