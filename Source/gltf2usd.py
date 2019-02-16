@@ -456,7 +456,7 @@ class GLTF2USD(object):
         material_name_map = []
 
         for i, material in enumerate(self.gltf_loader.get_materials()):
-            material_name = GLTF2USDUtils.convert_to_usd_friendly_node_name(material.get_name())
+            material_name = '{0}_index_{1}'.format(GLTF2USDUtils.convert_to_usd_friendly_node_name(material.get_name()), i)
             #check for unique material name
             if material_name in material_name_map:
                 count = 1
@@ -468,8 +468,8 @@ class GLTF2USD(object):
                 material_name = new_material_name
 
             material_name_map.append(material_name)
-            usd_material = USDMaterial(self.stage, GLTF2USDUtils.convert_to_usd_friendly_node_name(material_name), scope, i, self.gltf_loader)
-            usd_material.convert_material_to_usd_preview_surface(material, self.output_dir)
+            usd_material = USDMaterial(self.stage, material_name, scope, i, self.gltf_loader)
+            usd_material.convert_material_to_usd_preview_surface(material, self.output_dir, material_name)
             self.usd_materials.append(usd_material)
 
     def _node_has_animations(self, gltf_node):
