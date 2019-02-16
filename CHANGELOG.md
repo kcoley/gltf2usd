@@ -116,6 +116,6 @@
 **Changes:**
 - Update rename regex to include square brackets (https://github.com/kcoley/gltf2usd/issues/144)
 
-## 0.1.21 (2019-02-15)
+## 0.1.22 (2019-02-15)
 **Fixed Bugs:**
 - Resolve some issues with materials containing special characters by appending index to name (https://github.com/kcoley/gltf2usd/issues/147)
