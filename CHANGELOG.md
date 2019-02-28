@@ -119,3 +119,7 @@
 ## 0.1.22 (2019-02-15)
 **Fixed Bugs:**
 - Resolve some issues with materials containing special characters by appending index to name (https://github.com/kcoley/gltf2usd/issues/147)
+
+## 0.1.23 (2019-02-27)
+**Fixed Bugs:**
+- Fixed a bug where `TEXCOORD_1` attribute was not being read (https://github.com/kcoley/gltf2usd/issues/149)
