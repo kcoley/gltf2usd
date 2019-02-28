@@ -332,6 +332,17 @@ class GLTF2USD(object):
                 prim_var = UsdGeom.PrimvarsAPI(mesh)
                 uv = prim_var.CreatePrimvar('primvars:st0', Sdf.ValueTypeNames.TexCoord2fArray, 'vertex')
                 uv.Set(invert_uvs)
+
+            if attribute_name == 'TEXCOORD_1':
+                data = attribute.get_data()
+                invert_uvs = []
+                for uv in data:
+                    new_uv = (uv[0], 1 - uv[1])
+                    invert_uvs.append(new_uv)
+                prim_var = UsdGeom.PrimvarsAPI(mesh)
+                uv = prim_var.CreatePrimvar('primvars:st1', Sdf.ValueTypeNames.TexCoord2fArray, 'vertex')
+                uv.Set(invert_uvs)
+                
             if attribute_name == 'JOINTS_0':
                 self._convert_skin_to_usd(gltf_node, gltf_primitive, parent_node, mesh)
         
