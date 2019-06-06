@@ -4,7 +4,7 @@ from _gltf2usd.gltf2usdUtils import GLTF2USDUtils
 
 from pxr import Gf
 
-class AnimationSampler:
+class AnimationSampler(object):
     def __init__(self, sampler_entry, animation):
         self._animation = animation
         self._input_accessor_index = sampler_entry['input']
@@ -117,7 +117,7 @@ class AnimationSampler:
             
  
 
-class AnimationChannelTarget:
+class AnimationChannelTarget(object):
     def __init__(self, animation_channel_target_entry):
         self._node_index = animation_channel_target_entry['node']
         self._path = animation_channel_target_entry['path']
@@ -125,7 +125,7 @@ class AnimationChannelTarget:
     def path(self):
         return self._path
 
-class AnimationChannel:
+class AnimationChannel(object):
     def __init__(self, channel_entry, animation):
         self._sampler_index = channel_entry['sampler']
         self._target = AnimationChannelTarget(channel_entry['target'])
@@ -143,7 +143,7 @@ class AnimationChannel:
         return self._animation._samplers[self._sampler_index]
 
 
-class Animation:
+class Animation(object):
     def __init__(self, animation_entry, index, gltf_loader):
         self._gltf_loader = gltf_loader
         self._name = animation_entry['name'] if ('name' in animation_entry) else 'animation_{}'.format(index)

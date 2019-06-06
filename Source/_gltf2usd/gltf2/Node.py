@@ -1,6 +1,6 @@
 import unicodedata
 
-class Node:
+class Node(object):
     """Create a glTF node object
     """
 

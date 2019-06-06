@@ -123,3 +123,10 @@
 ## 0.1.23 (2019-02-27)
 **Fixed Bugs:**
 - Fixed a bug where `TEXCOORD_1` attribute was not being read (https://github.com/kcoley/gltf2usd/issues/149)
+
+## 0.1.24 (2019-02-27)
+**Fixed Bugs:**
+- Fix blend shapes
+**Changes:**
+- The Usd file generation now happens in a temp directory
+- Add `--scale-texture` optional parameter to multiply metallic/roughness factors by textures

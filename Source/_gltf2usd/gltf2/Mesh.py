@@ -9,7 +9,7 @@ class PrimitiveModeType(Enum):
     TRIANGLE_STRIP = 5
     TRIANGLE_FAN = 6
 
-class PrimitiveAttribute:
+class PrimitiveAttribute(object):
     def __init__(self, attribute_name, attribute_data, accessor_type, min_value=None, max_value=None):
         self._attribute_type = attribute_name
         self._attribute_data = attribute_data
@@ -35,7 +35,7 @@ class PrimitiveAttribute:
         return self._attribute_data
 
 
-class PrimitiveTarget:
+class PrimitiveTarget(object):
     def __init__(self, target_entry, target_index, gltf_loader):
         self._name = None
         self._attributes = {}
@@ -53,7 +53,7 @@ class PrimitiveTarget:
         return self._name
 
 
-class Primitive:
+class Primitive(object):
     def __init__(self, primitive_entry, i, gltf_mesh, gltf_loader):
         self._name = primitive_entry['name'] if ('name' in primitive_entry) else 'primitive_{}'.format(i)
         self._attributes = {}
@@ -111,7 +111,7 @@ class Primitive:
 
 
 
-class Mesh:
+class Mesh(object):
     def __init__(self, mesh_entry, mesh_index, gltf_loader):
         self._name = mesh_entry['name'] if 'name' in mesh_entry else 'mesh_{}'.format(mesh_index)
         self._primitives = []

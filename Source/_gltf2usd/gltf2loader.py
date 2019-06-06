@@ -11,7 +11,6 @@ import gltf2usdUtils
 from gltf2 import Skin, Node, Animation, Scene, Mesh, Material, GLTFImage
 
 
-
 class AccessorType(Enum):
     SCALAR = 'SCALAR'
     VEC2 = 'VEC2'
@@ -88,7 +87,7 @@ def accessor_component_type_bytesize(x):
 
 
 
-class GLTF2Loader:
+class GLTF2Loader(object):
     """A very simple glTF loader.  It is essentially a utility to load data from accessors
     """
 
