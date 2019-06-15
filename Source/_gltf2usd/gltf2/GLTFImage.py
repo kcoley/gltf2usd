@@ -94,12 +94,15 @@ class GLTFImage(object):
                     value = img.getpixel((x, y))
                     if isinstance(value, int):
                         value = value * scale_factor[0]
+                        img.putpixel((x, y), (int(value)))
                     else:
-                        value[0] = value[0] * scale_factor[0]
-                        value[1] = value[1] * scale_factor[1]
-                        value[2] = value[2] * scale_factor[2]
-
-                    img.putpixel((x, y), (int(value)))
+                        value = list(value)
+                        value[0] = int(value[0] * scale_factor[0])
+                        value[1] = int(value[1] * scale_factor[1])
+                        value[2] = int(value[2] * scale_factor[2])
+                        value = tuple(value)
+                        img.putpixel((x, y), (value))
+                    
         #apply texture transform if necessary
         if offset != [0,0] or scale != [1,1] or rotation != 0:
             if not self._generate_texture_transform_texture:
