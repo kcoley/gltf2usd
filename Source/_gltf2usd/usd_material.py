@@ -12,7 +12,7 @@ class USDMaterial(object):
         self._gltf2loader = gltf2loader
         self._stage = stage
         self._material_scope = material_scope
-        self._material_path = Sdf.Path('{0}/{1}'.format('/Materials', name))
+        self._material_path = Sdf.Path('{0}/{1}'.format('/root/Materials', name))
         self._usd_material = UsdShade.Material.Define(stage, self._material_path)
         
         self._usd_material_surface_output = self._usd_material.CreateOutput("surface", Sdf.ValueTypeNames.Token)

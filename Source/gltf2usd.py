@@ -466,7 +466,7 @@ class GLTF2USD(object):
         Converts the glTF materials to preview surfaces
         """
         self.usd_materials = []
-        material_path_root = '/Materials'
+        material_path_root = '/root/Materials'
         scope = UsdGeom.Scope.Define(self.stage, material_path_root)
         material_name_map = []
 
@@ -830,6 +830,7 @@ def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False, 
         usd = GLTF2USD(gltf_file=gltf_file, usd_file=temp_usd_file, fps=fps, scale=scale, verbose=verbose, use_euler_rotation=use_euler_rotation, optimize_textures=optimize_textures, generate_texture_transform_texture=generate_texture_transform_texture, scale_texture=scale_texture)
         if usd.stage:
             asset = usd.stage.GetRootLayer()
+            asset.customLayerData = {'creator': 'gltf2usd v{}'.format(__version__)}
             usd.logger.info('Conversion complete!')
 
             asset.Save()

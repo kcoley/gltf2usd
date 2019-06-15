@@ -130,3 +130,5 @@
 **Changes:**
 - The Usd file generation now happens in a temp directory
 - Add `--scale-texture` optional parameter to multiply metallic/roughness factors by textures
+- Added creator metadata
+- Moved material scope to below root xform
