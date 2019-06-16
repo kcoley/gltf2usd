@@ -66,7 +66,6 @@ class GLTF2USD(object):
         #if usdz file is desired, change to usdc file
         if usd_file.endswith('usdz'):
             usd_file = usd_file[:-1] + 'c'
-            self.logger.info("converted usd file extension from .usdz to .usdc: {}".format(usd_file))
         self.stage = Usd.Stage.CreateNew(usd_file)
         self.gltf_usd_nodemap = {}
         self.gltf_usdskel_nodemap = {}
@@ -116,6 +115,9 @@ class GLTF2USD(object):
 
         for child in children:
             self._convert_node_to_xform(child, xformPrim)
+
+        if node.extras:
+            self.stage.OverridePrim(xformPrim.GetPath()).SetCustomData(node.extras)
 
 
     def _create_usd_skeleton(self, gltf_skin, usd_xform, usd_joint_names):
@@ -830,7 +832,22 @@ def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False, 
         usd = GLTF2USD(gltf_file=gltf_file, usd_file=temp_usd_file, fps=fps, scale=scale, verbose=verbose, use_euler_rotation=use_euler_rotation, optimize_textures=optimize_textures, generate_texture_transform_texture=generate_texture_transform_texture, scale_texture=scale_texture)
         if usd.stage:
             asset = usd.stage.GetRootLayer()
-            asset.customLayerData = {'creator': 'gltf2usd v{}'.format(__version__)}
+            gltf_asset = usd.gltf_loader.get_asset()
+            if gltf_asset:
+                gltf_metadata = {'creator': 'gltf2usd v{}'.format(__version__)}
+                if gltf_asset.generator:
+                    gltf_metadata['gltf_generator'] = gltf_asset.generator
+                if gltf_asset.version:
+                    gltf_metadata['gltf_version'] = gltf_asset.version
+                if gltf_asset.minversion:
+                    gltf_metadata['gltf_minversion'] = gltf_asset.minversion
+                if gltf_asset.copyright:
+                    gltf_metadata['gltf_copyright'] = gltf_asset.copyright
+                if gltf_asset.extras:
+                    for key, value in gltf_asset.extras.items():
+                        gltf_metadata['gltf_extras_{}'.format(key)] = value
+                asset.customLayerData = gltf_metadata
+
             usd.logger.info('Conversion complete!')
 
             asset.Save()
