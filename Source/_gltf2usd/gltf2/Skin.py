@@ -1,5 +1,5 @@
 from sets import Set
-class Skin:
+class Skin(object):
     """Represents a glTF Skin
     """
 

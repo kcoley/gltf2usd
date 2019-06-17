@@ -43,8 +43,8 @@ class Texture(object):
     def get_wrap_t(self):
         return self._wrap_t
 
-    def write_to_directory(self, output_directory, channels, texture_prefix=""):
-        return self._image.write_to_directory(output_directory, channels, texture_prefix, self._tt_offset, self._tt_scale, self._tt_rotation)
+    def write_to_directory(self, output_directory, channels, texture_prefix="", scale_factor=None):
+        return self._image.write_to_directory(output_directory, channels, texture_prefix, self._tt_offset, self._tt_scale, self._tt_rotation, scale_factor)
 
     def get_texcoord_index(self):
         return self._texcoord_index
@@ -72,7 +72,7 @@ class OcclusionTexture(Texture):
     def strength(self):
         return self._strength
 
-class PbrMetallicRoughness:
+class PbrMetallicRoughness(object):
     def __init__(self, pbr_metallic_roughness_entry, gltf_loader):
         self._name = pbr_metallic_roughness_entry['name'] if ('name' in pbr_metallic_roughness_entry) else 'pbr_mat_roughness_texture'
         self._base_color_factor = pbr_metallic_roughness_entry['baseColorFactor'] if ('baseColorFactor' in pbr_metallic_roughness_entry) else [1.0,1.0,1.0, 1.0]

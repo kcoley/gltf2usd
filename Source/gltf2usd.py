@@ -9,6 +9,7 @@ import logging
 import ntpath
 import numpy
 import os
+import tempfile
 import re
 import shutil
 from io import BytesIO
@@ -37,7 +38,7 @@ class GLTF2USD(object):
         TextureWrap.REPEAT: 'repeat',
     }
 
-    def __init__(self, gltf_file, usd_file, fps, scale, verbose=False, use_euler_rotation=False, optimize_textures=False, generate_texture_transform_texture=True):
+    def __init__(self, gltf_file, usd_file, fps, scale, verbose=False, use_euler_rotation=False, optimize_textures=False, generate_texture_transform_texture=True, scale_texture=False):
         """Initializes the glTF to USD converter
 
         Arguments:
@@ -56,6 +57,7 @@ class GLTF2USD(object):
         self.verbose = verbose
         self.scale = scale
         self.use_euler_rotation = use_euler_rotation
+        self._scale_texture = scale_texture
 
         self.output_dir = os.path.dirname(os.path.abspath(usd_file))
         if self.verbose:
@@ -64,7 +66,6 @@ class GLTF2USD(object):
         #if usdz file is desired, change to usdc file
         if usd_file.endswith('usdz'):
             usd_file = usd_file[:-1] + 'c'
-            self.logger.info("converted usd file extension from .usdz to .usdc: {}".format(usd_file))
         self.stage = Usd.Stage.CreateNew(usd_file)
         self.gltf_usd_nodemap = {}
         self.gltf_usdskel_nodemap = {}
@@ -114,6 +115,9 @@ class GLTF2USD(object):
 
         for child in children:
             self._convert_node_to_xform(child, xformPrim)
+
+        if node.extras:
+            self.stage.OverridePrim(xformPrim.GetPath()).SetCustomData(node.extras)
 
 
     def _create_usd_skeleton(self, gltf_skin, usd_xform, usd_joint_names):
@@ -345,7 +349,7 @@ class GLTF2USD(object):
                 
             if attribute_name == 'JOINTS_0':
                 self._convert_skin_to_usd(gltf_node, gltf_primitive, parent_node, mesh)
-        
+
         weights = gltf_mesh.get_weights()
         if targets:
             skinBinding = UsdSkel.BindingAPI.Apply(mesh.GetPrim())
@@ -357,6 +361,8 @@ class GLTF2USD(object):
 
             # link the skeleton animation to skelAnim
             skinBinding.CreateAnimationSourceRel().AddTarget(skelAnim.GetPath())
+            skeleton_skel_binding = UsdSkel.BindingAPI(skeleton)
+            skeleton_skel_binding.CreateAnimationSourceRel().AddTarget(skelAnim.GetPath())
 
             # link the skeleton to skeleton
             skinBinding.CreateSkeletonRel().AddTarget(skeleton.GetPath())
@@ -369,10 +375,10 @@ class GLTF2USD(object):
                 names.append(blend_shape_name)
 
             skelAnim.CreateBlendShapesAttr().Set(names)
+            self._set_blendshape_weights(skelAnim, usd_node, gltf_node)
             skinBinding.CreateBlendShapesAttr(names)
 
             # Set the starting weights of each blendshape to the weights defined in the glTF primitive
-            skelAnim.CreateBlendShapeWeightsAttr().Set(weights)
             blend_shape_targets = skinBinding.CreateBlendShapeTargetsRel()
 
             # Define offsets for each blendshape, and add them as skel:blendShapes and skel:blendShapeTargets
@@ -462,7 +468,7 @@ class GLTF2USD(object):
         Converts the glTF materials to preview surfaces
         """
         self.usd_materials = []
-        material_path_root = '/Materials'
+        material_path_root = '/root/Materials'
         scope = UsdGeom.Scope.Define(self.stage, material_path_root)
         material_name_map = []
 
@@ -479,7 +485,7 @@ class GLTF2USD(object):
                 material_name = new_material_name
 
             material_name_map.append(material_name)
-            usd_material = USDMaterial(self.stage, material_name, scope, i, self.gltf_loader)
+            usd_material = USDMaterial(self.stage, material_name, scope, i, self.gltf_loader, self._scale_texture)
             usd_material.convert_material_to_usd_preview_surface(material, self.output_dir, material_name)
             self.usd_materials.append(usd_material)
 
@@ -534,6 +540,8 @@ class GLTF2USD(object):
                 rotation = animation_channel.sampler.get_interpolated_output_data(input_sample) 
             elif animation_channel.target.path == 'scale':
                 scale = animation_channel.sampler.get_interpolated_output_data(input_sample) 
+            elif animation_channel.target.path == 'weights':
+                weights = animation_channel.sampler.get_output_data()
 
         return UsdSkel.MakeTransform(translation, rotation, scale)
 
@@ -567,6 +575,8 @@ class GLTF2USD(object):
             skel_binding_api.CreateSkeletonRel().AddTarget(skeleton.GetPath())
             if skeleton_animation:
                 skel_binding_api.CreateAnimationSourceRel().AddTarget(skeleton_animation.GetPath())
+                skeleton_skel_binding_api = UsdSkel.BindingAPI(skeleton)
+                skeleton_skel_binding_api.CreateAnimationSourceRel().AddTarget(skeleton_animation.GetPath())
             
             bind_matrices = self._compute_bind_transforms(gltf_skin)
 
@@ -695,7 +705,6 @@ class GLTF2USD(object):
         Returns:
             [type] -- [description]
         """
-
         max_time = -999
         min_time = 999
         for channel in animation_channels:
@@ -704,13 +713,32 @@ class GLTF2USD(object):
 
 
         transform = usd_node.AddTransformOp(opSuffix='transform')
-
-        for i, keyframe in enumerate(numpy.arange(min_time, max_time, 1./self.fps)):
-            transform_node = self._create_keyframe_transform_node(gltf_node, animation_channels, keyframe)
-            transform.Set(transform_node, Usd.TimeCode(i))
+        for animation_channel in animation_channels:
+            #if animation_channel.target.path != 'weights':
+            for i, keyframe in enumerate(numpy.arange(min_time, max_time, 1./self.fps)):
+                transform_node = self._create_keyframe_transform_node(gltf_node, animation_channels, keyframe)
+                transform.Set(transform_node, Usd.TimeCode(i))
 
         MinMaxTime = collections.namedtuple('MinMaxTime', ('max', 'min'))
         return MinMaxTime(max=max_time, min=min_time)
+
+    def _set_blendshape_weights(self, skel_anim, usd_node, gltf_node):
+        animations = self.gltf_loader.get_animations()
+        if (len(animations) > 0): # only support first animation group
+            animation = animations[0]
+
+            animation_channels = animation.get_animation_channels_for_node(gltf_node)
+            for animation_channel in animation_channels:
+                if animation_channel.target.path == 'weights':
+                    output_data = animation_channel.sampler.get_output_data()
+                    input_data = animation_channel.sampler.get_input_data()
+                    
+                    output_data_entries = []
+                    for index in range(0, len(output_data)/2):
+                        output_data_entries.append([output_data[index * 2], output_data[index * 2 + 1]])
+                    usd_blend_shape_weights = skel_anim.CreateBlendShapeWeightsAttr()
+                    for entry in zip(output_data_entries, input_data):
+                        usd_blend_shape_weights.Set(Vt.FloatArray(entry[0]), Usd.TimeCode(entry[1] * self.fps))
 
     def _get_keyframe_conversion_func(self, usd_node, animation_channel):
         """Convert glTF key frames to USD animation key frames
@@ -725,7 +753,6 @@ class GLTF2USD(object):
         Returns:
             [func] -- USD animation conversion function
         """
-
         path = animation_channel.target.path
         animation_sampler = animation_channel.sampler
 
@@ -789,7 +816,7 @@ def check_usd_compliance(rootLayer, arkit=False):
     return len(errors) == 0 and len(failedChecks) == 0
 
 
-def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False, use_euler_rotation=False, optimize_textures=False, generate_texture_transform_texture=True):
+def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False, use_euler_rotation=False, optimize_textures=False, generate_texture_transform_texture=True, scale_texture=False):
     """Converts a glTF file to USD
 
     Arguments:
@@ -799,45 +826,81 @@ def convert_to_usd(gltf_file, usd_file, fps, scale, arkit=False, verbose=False, 
     Keyword Arguments:
         verbose {bool} -- [description] (default: {False})
     """
+    temp_dir = tempfile.mkdtemp()
+    temp_usd_file = os.path.join(temp_dir, ntpath.basename(usd_file))
+    try:
+        usd = GLTF2USD(gltf_file=gltf_file, usd_file=temp_usd_file, fps=fps, scale=scale, verbose=verbose, use_euler_rotation=use_euler_rotation, optimize_textures=optimize_textures, generate_texture_transform_texture=generate_texture_transform_texture, scale_texture=scale_texture)
+        if usd.stage:
+            asset = usd.stage.GetRootLayer()
+            gltf_asset = usd.gltf_loader.get_asset()
+            if gltf_asset:
+                gltf_metadata = {'creator': 'gltf2usd v{}'.format(__version__)}
+                if gltf_asset.generator:
+                    gltf_metadata['gltf_generator'] = gltf_asset.generator
+                if gltf_asset.version:
+                    gltf_metadata['gltf_version'] = gltf_asset.version
+                if gltf_asset.minversion:
+                    gltf_metadata['gltf_minversion'] = gltf_asset.minversion
+                if gltf_asset.copyright:
+                    gltf_metadata['gltf_copyright'] = gltf_asset.copyright
+                if gltf_asset.extras:
+                    for key, value in gltf_asset.extras.items():
+                        gltf_metadata['gltf_extras_{}'.format(key)] = value
+                asset.customLayerData = gltf_metadata
 
-    usd = GLTF2USD(gltf_file=gltf_file, usd_file=usd_file, fps=fps, scale=scale, verbose=verbose, use_euler_rotation=use_euler_rotation, optimize_textures=optimize_textures, generate_texture_transform_texture=generate_texture_transform_texture)
-    if usd.stage:
-        asset = usd.stage.GetRootLayer()
-        usd.logger.info('Conversion complete!')
+            usd.logger.info('Conversion complete!')
 
-        asset.Save()
-        usd.logger.info('created {}'.format(asset.realPath))
+            asset.Save()
+            usd.logger.info('created {}'.format(asset.realPath))
+            if not os.path.isdir(os.path.dirname(usd_file)):
+                os.makedirs(os.path.dirname(usd_file))
 
-        if usd_file.endswith('.usdz') or usd_file.endswith('.usdc'):
-            usdc_file = '%s.%s' % (os.path.splitext(usd_file)[0], 'usdc')
-            asset.Export(usdc_file, args=dict(format='usdc'))
-            usd.logger.info('created {}'.format(usdc_file))
+            if temp_usd_file.endswith('.usdz') or temp_usd_file.endswith('.usdc'):
+                usdc_file = '%s.%s' % (os.path.splitext(temp_usd_file)[0], 'usdc')
+                asset.Export(usdc_file, args=dict(format='usdc'))
+                usd.logger.info('created {}'.format(usdc_file))
 
-        if usd_file.endswith('.usdz'):
-            #change to directory of the generated usd files to avoid issues with 
-            # relative paths with CreateNewUsdzPackage
-            os.chdir(os.path.dirname(usdc_file))
-            usd_file = ntpath.basename(usd_file)
-            r = Ar.GetResolver()
-            resolved_asset = r.Resolve(ntpath.basename(usdc_file))
-            context = r.CreateDefaultContextForAsset(resolved_asset)
+            if temp_usd_file.endswith('.usdz'):
+                #change to directory of the generated usd files to avoid issues with 
+                # relative paths with CreateNewUsdzPackage
+                os.chdir(os.path.dirname(usdc_file))
+                temp_usd_file = ntpath.basename(temp_usd_file)
+                r = Ar.GetResolver()
+                resolved_asset = r.Resolve(ntpath.basename(usdc_file))
+                context = r.CreateDefaultContextForAsset(resolved_asset)
 
-            success = check_usd_compliance(resolved_asset, arkit=args.arkit)
-            with Ar.ResolverContextBinder(context):
-                if arkit and not success:
-                    usd.logger.warning('USD is not ARKit compliant')
-                    return
+                success = check_usd_compliance(resolved_asset, arkit=args.arkit)
+                with Ar.ResolverContextBinder(context):
+                    if arkit and not success:
+                        usd.logger.warning('USD is not ARKit compliant')
+                        return
 
-                success = UsdUtils.CreateNewUsdzPackage(resolved_asset, usd_file) and success
-                if success:
-                    usd.logger.info('created package {} with contents:'.format(usd_file))
-                    zip_file = Usd.ZipFile.Open(usd_file)
-                    file_names = zip_file.GetFileNames()
-                    for file_name in file_names:
-                        usd.logger.info('\t{}'.format(file_name))
-                else:
-                    usd.logger.error('could not create {}'.format(usd_file))
+                    success = UsdUtils.CreateNewUsdzPackage(resolved_asset, temp_usd_file) and success
+                    if success:
+                        shutil.copyfile(temp_usd_file, usd_file)
+                        usd.logger.info('created package {} with contents:'.format(usd_file))
+                        zip_file = Usd.ZipFile.Open(usd_file)
+                        file_names = zip_file.GetFileNames()
+                        for file_name in file_names:
+                            usd.logger.info('\t{}'.format(file_name))
+                    else:
+                        usd.logger.error('could not create {}'.format(usd_file))
+            else:
+                # Copy textures referenced in the Usda/Usdc files from the temp directory to the target directory
+                temp_stage = Usd.Stage.Open(temp_usd_file)
+                usd_uv_textures = [x for x in temp_stage.Traverse() if x.IsA(UsdShade.Shader) and UsdShade.Shader(x).GetShaderId() == 'UsdUVTexture']
 
+                for usd_uv_texture in usd_uv_textures:
+                    file_name = usd_uv_texture.GetAttribute('inputs:file').Get()
+                    if file_name:
+                        file_name = str(file_name).replace('@', '')
+
+                        if os.path.isfile(os.path.join(temp_dir, file_name)):
+                            shutil.copyfile(os.path.join(temp_dir, file_name), os.path.join(os.path.dirname(usd_file), file_name))
+                shutil.copyfile(temp_usd_file, usd_file)
+    finally:
+        shutil.rmtree(temp_dir)
+            
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Convert glTF to USD: v{}'.format(__version__))
@@ -851,9 +914,10 @@ if __name__ == '__main__':
     parser.add_argument('--optimize-textures', action='store_true', dest='optimize_textures', default=False, help='Specifies if image file size should be optimized and reduced at the expense of longer export time')
     parser.add_argument('--generate_texture_transform_texture', dest='generate_texture_transform_texture', action='store_true', help='Enables texture transform texture generation')
     parser.add_argument('--no-generate_texture_transform_texture', dest='generate_texture_transform_texture', action='store_false', help='Disables texture transform texture generation')
+    parser.add_argument('--scale-texture', dest='scale_texture', action='store_true', help='Multiplies metallic/roughness factors by textures', default=False)
     parser.set_defaults(generate_texture_transform_texture=True)
 
     args = parser.parse_args()
 
     if args.gltf_file:
-        convert_to_usd(os.path.expanduser(args.gltf_file), os.path.abspath(os.path.expanduser(args.usd_file)), args.fps, args.scale, args.arkit, args.verbose, args.use_euler_rotation, args.optimize_textures, args.generate_texture_transform_texture)
+        convert_to_usd(os.path.expanduser(args.gltf_file), os.path.abspath(os.path.expanduser(args.usd_file)), args.fps, args.scale, args.arkit, args.verbose, args.use_euler_rotation, args.optimize_textures, args.generate_texture_transform_texture, args.scale_texture)

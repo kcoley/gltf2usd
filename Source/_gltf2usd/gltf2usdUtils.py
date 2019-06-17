@@ -2,7 +2,7 @@ import re
 
 from pxr import Gf, UsdSkel
 
-class GLTF2USDUtils:
+class GLTF2USDUtils(object):
     @staticmethod
     def convert_to_usd_friendly_node_name(name):
         """Format a glTF name to make it more USD friendly

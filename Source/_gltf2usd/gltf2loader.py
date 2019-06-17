@@ -8,8 +8,7 @@ import struct
 
 import gltf2usdUtils
 
-from gltf2 import Skin, Node, Animation, Scene, Mesh, Material, GLTFImage
-
+from gltf2 import Skin, Node, Animation, Scene, Mesh, Material, GLTFImage, Asset
 
 
 class AccessorType(Enum):
@@ -88,7 +87,7 @@ def accessor_component_type_bytesize(x):
 
 
 
-class GLTF2Loader:
+class GLTF2Loader(object):
     """A very simple glTF loader.  It is essentially a utility to load data from accessors
     """
 
@@ -120,6 +119,7 @@ class GLTF2Loader:
     def _initialize(self):
         """Initializes the glTF loader
         """
+        self._initialize_asset()
         self._initialize_images()
         self._initialize_materials()
         self._initialize_meshes()
@@ -128,6 +128,12 @@ class GLTF2Loader:
         self._initialize_scenes()
         
         self._initialize_animations()
+
+    def _initialize_asset(self):
+        if 'asset' in self.json_data:
+            self._asset = Asset.Asset(self.json_data['asset'])
+        else:
+            self._asset = None
 
     def _initialize_images(self):
         self._images = []
@@ -223,6 +229,10 @@ class GLTF2Loader:
             for node in self.nodes:
                 if node._skin_index != None:
                     node._skin = self.skins[node._skin_index]
+
+
+    def get_asset(self):
+        return self._asset
 
     def get_nodes(self):
         return self.nodes

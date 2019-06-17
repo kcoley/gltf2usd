@@ -1,6 +1,6 @@
 import unicodedata
 
-class Node:
+class Node(object):
     """Create a glTF node object
     """
 
@@ -24,6 +24,7 @@ class Node:
         
         self._children_indices = node_dict['children'] if ('children' in node_dict) else []
         self._children = []
+        self._extras = node_dict['extras'] if 'extras' in node_dict else {}
 
     @property
     def name(self):
@@ -64,3 +65,7 @@ class Node:
     @property
     def index(self):
         return self._node_index
+
+    @property
+    def extras(self):
+        return self._extras

@@ -1,4 +1,4 @@
-class Scene:
+class Scene(object):
     def __init__(self, scene_entry, scene_index, nodes):
         self._nodes = []
         if 'nodes' in scene_entry:

@@ -123,3 +123,14 @@
 ## 0.1.23 (2019-02-27)
 **Fixed Bugs:**
 - Fixed a bug where `TEXCOORD_1` attribute was not being read (https://github.com/kcoley/gltf2usd/issues/149)
+
+## 0.2.0 (2019-02-27)
+**Fixed Bugs:**
+- Fix blend shapes
+**Changes:**
+- The Usd file generation now happens in a temp directory
+- Add `--scale-texture` optional parameter to multiply metallic/roughness factors by textures
+- Added creator metadata
+- Moved material scope to below root xform
+- connect opacity of diffuse texture if alpha blend or mask is used
+- Export extras data on nodes and glTF asset 

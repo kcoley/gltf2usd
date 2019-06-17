@@ -58,7 +58,7 @@ class GLTFImage(object):
         return self._image_path
 
 
-    def write_to_directory(self, output_dir, channels, texture_prefix, offset = [0,0], scale = [1,1], rotation = 0):
+    def write_to_directory(self, output_dir, channels, texture_prefix, offset = [0,0], scale = [1,1], rotation = 0, scale_factor=None):
         file_name = '{0}_{1}'.format(texture_prefix, ntpath.basename(self._name)) if texture_prefix else ntpath.basename(self._name)
         destination = os.path.join(output_dir, file_name)
         original_img = Image.open(self._image_path)
@@ -87,6 +87,22 @@ class GLTFImage(object):
         if destination.endswith('jpg') or destination.endswith('.jpeg'):
             img = img.convert('RGB')
 
+        if scale_factor:
+            width, height = img.size
+            for x in range(width):
+                for y in range(height):
+                    value = img.getpixel((x, y))
+                    if isinstance(value, int):
+                        value = value * scale_factor[0]
+                        img.putpixel((x, y), (int(value)))
+                    else:
+                        value = list(value)
+                        value[0] = int(value[0] * scale_factor[0])
+                        value[1] = int(value[1] * scale_factor[1])
+                        value[2] = int(value[2] * scale_factor[2])
+                        value = tuple(value)
+                        img.putpixel((x, y), (value))
+                    
         #apply texture transform if necessary
         if offset != [0,0] or scale != [1,1] or rotation != 0:
             if not self._generate_texture_transform_texture:

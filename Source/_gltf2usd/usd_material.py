@@ -7,19 +7,20 @@ from _gltf2usd.gltf2usdUtils import GLTF2USDUtils
 from gltf2.Material import AlphaMode
 from gltf2loader import TextureWrap
 
-class USDMaterial():
-    def __init__(self, stage, name, material_scope, index, gltf2loader):
+class USDMaterial(object):
+    def __init__(self, stage, name, material_scope, index, gltf2loader, scale_texture=False):
         self._gltf2loader = gltf2loader
         self._stage = stage
         self._material_scope = material_scope
-        self._material_path = Sdf.Path('{0}/{1}'.format('/Materials', name))
+        self._material_path = Sdf.Path('{0}/{1}'.format('/root/Materials', name))
         self._usd_material = UsdShade.Material.Define(stage, self._material_path)
         
         self._usd_material_surface_output = self._usd_material.CreateOutput("surface", Sdf.ValueTypeNames.Token)
         self._usd_material_displacement_output = self._usd_material.CreateOutput("displacement", Sdf.ValueTypeNames.Token)
+        self._scale_texture = scale_texture
 
     def convert_material_to_usd_preview_surface(self, gltf_material, output_directory, material_name):
-        usd_preview_surface = USDPreviewSurface(self._stage, gltf_material, self, output_directory, material_name)
+        usd_preview_surface = USDPreviewSurface(self._stage, gltf_material, self, output_directory, material_name, self._scale_texture)
         usd_preview_surface._name = material_name
 
     def get_usd_material(self):
@@ -28,21 +29,21 @@ class USDMaterial():
 
 
 
-class USDPreviewSurface():
+class USDPreviewSurface(object):
     """Models a physically based surface for USD
     """
-    def __init__(self, stage, gltf_material, usd_material, output_directory, material_name):
+    def __init__(self, stage, gltf_material, usd_material, output_directory, material_name, scale_texture=False):
         self._stage = stage
+        self._scale_texture = scale_texture
         self._usd_material = usd_material
         self._output_directory = output_directory
         material_path = usd_material._usd_material.GetPath()
         material = UsdShade.Shader.Define(self._stage, material_path.AppendChild(material_name))
         material.CreateIdAttr('UsdPreviewSurface')
+        self._shader = material
         self._initialize_material(material, self)
         self._initialize_from_gltf_material(gltf_material)
-
-        self._stage = stage
-
+        
 
     def _initialize_material(self, material, usd_preview_surface_material):
         shader = material
@@ -56,17 +57,12 @@ class USDPreviewSurface():
         self._displacement_output = shader.CreateOutput('displacement', Sdf.ValueTypeNames.Token)
         self._usd_material._usd_material_displacement_output.ConnectToSource(self._displacement_output)
         
-
-        self._diffuse_color = (1.0, 1.0, 1.0)
-        self._emissive_color = (0.0, 0.0, 0.0)
         self._specular_color = material.CreateInput('specularColor', Sdf.ValueTypeNames.Color3f)
         self._specular_color.Set((1.0,1.0,1.0))
         
         self._metallic = material.CreateInput('metallic', Sdf.ValueTypeNames.Float)
-        self._metallic.Set(1.0)
 
         self._roughness = material.CreateInput('roughness', Sdf.ValueTypeNames.Float)
-        self._roughness.Set(1.0)
 
         self._clearcoat = material.CreateInput('clearcoat', Sdf.ValueTypeNames.Float)
         self._clearcoat.Set(0.0)
@@ -75,7 +71,6 @@ class USDPreviewSurface():
         self._clearcoat_roughness.Set(0.01)
 
         self._opacity = material.CreateInput('opacity', Sdf.ValueTypeNames.Float)
-        self._opacity.Set(1.0)
 
         self._ior = material.CreateInput('ior', Sdf.ValueTypeNames.Float)
         self._ior.Set(1.5)
@@ -86,17 +81,13 @@ class USDPreviewSurface():
         self._displacement.Set(0.0)
 
         self._occlusion = material.CreateInput('occlusion', Sdf.ValueTypeNames.Float)
-        self._occlusion.Set(1.0)
 
         self._emissive_color = material.CreateInput('emissiveColor', Sdf.ValueTypeNames.Color3f)
-        self._emissive_color.Set((0, 0, 0))
 
         self._diffuse_color = material.CreateInput('diffuseColor', Sdf.ValueTypeNames.Color3f)
-        self._diffuse_color.Set((1, 1, 1))
 
         self._st0 = USDPrimvarReaderFloat2(self._stage, self._usd_material._material_path, 'st0')
         self._st1 = USDPrimvarReaderFloat2(self._stage, self._usd_material._material_path, 'st1')
-
 
     def _initialize_from_gltf_material(self, gltf_material):
         self._set_normal_texture(gltf_material)
@@ -104,8 +95,6 @@ class USDPreviewSurface():
         self._set_occlusion_texture(gltf_material)
         self._set_khr_material_pbr_specular_glossiness(gltf_material)
         
-        
-
     def _set_normal_texture(self, gltf_material):
         normal_texture = gltf_material.get_normal_texture()
         if (not normal_texture):
@@ -186,7 +175,9 @@ class USDPreviewSurface():
             usd_uv_texture._fallback.Set(scale_factor)
             texture_shader = usd_uv_texture.get_shader()
             texture_shader.CreateOutput('rgb', Sdf.ValueTypeNames.Float3)
+            texture_shader.CreateOutput('a', Sdf.ValueTypeNames.Float)
             self._diffuse_color.ConnectToSource(texture_shader, 'rgb')
+            self._opacity.ConnectToSource(texture_shader, 'a')
 
     def _set_pbr_specular_glossiness_specular(self, pbr_specular_glossiness):
         specular_glossiness_texture = pbr_specular_glossiness.get_specular_glossiness_texture()
@@ -195,8 +186,9 @@ class USDPreviewSurface():
         if not specular_glossiness_texture:
             self._specular_color.Set(specular_factor)
         else:
+            scale_factor = (specular_factor[0], specular_factor[1], specular_factor[2], 1)
             destination = specular_glossiness_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.RGB, "specular")
-            scale_factor = (specular_factor[0], specular_factor[1], specular_factor[2], 1) 
+
             usd_uv_texture = USDUVTexture("specularTexture", self._stage, self._usd_material._usd_material, specular_glossiness_texture, [self._st0, self._st1])
             usd_uv_texture._file_asset.Set(destination)
             usd_uv_texture._scale.Set(scale_factor)
@@ -230,15 +222,16 @@ class USDPreviewSurface():
         if AlphaMode(alpha_mode) != AlphaMode.OPAQUE:
             if AlphaMode(alpha_mode) == AlphaMode.MASK:
                 print('Alpha Mask not supported in USDPreviewSurface!  Using Alpha Blend...')
-
-            self._opacity.Set(base_color_scale[3])
+                
 
         if not base_color_texture:
             self._diffuse_color.Set(tuple(base_color_scale[0:3]))
+            if AlphaMode(alpha_mode) != AlphaMode.OPAQUE:
+                self._opacity.Set(base_color_scale[3])
         else:
             if AlphaMode(alpha_mode) == AlphaMode.OPAQUE:
                 destination = base_color_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.RGB)
-                scale_factor = (base_color_scale[0], base_color_scale[1], base_color_scale[2], 1.0)
+                scale_factor = (base_color_scale[0], base_color_scale[1], base_color_scale[2], base_color_scale[3])
             else:
                 destination = base_color_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.RGBA)
                 scale_factor = tuple(base_color_scale[0:4])
@@ -248,19 +241,28 @@ class USDPreviewSurface():
             usd_uv_texture._fallback.Set(scale_factor)
             texture_shader = usd_uv_texture.get_shader()
             texture_shader.CreateOutput('rgb', Sdf.ValueTypeNames.Float3)
+            texture_shader.CreateOutput('a', Sdf.ValueTypeNames.Float)
             self._diffuse_color.ConnectToSource(texture_shader, 'rgb')
+            if AlphaMode(alpha_mode) != AlphaMode.OPAQUE:
+                self._opacity.ConnectToSource(texture_shader, 'a')
 
     def _set_pbr_metallic(self, pbr_metallic_roughness):
         metallic_roughness_texture = pbr_metallic_roughness.get_metallic_roughness_texture()
         metallic_factor = pbr_metallic_roughness.get_metallic_factor()
-        if not metallic_roughness_texture:
+        if not metallic_roughness_texture or metallic_factor == 0:
             self._metallic.Set(metallic_factor)
         else:
-            destination = metallic_roughness_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.B, "metallic")
+            scale_texture = None
             scale_factor = tuple([metallic_factor]*4)
             usd_uv_texture = USDUVTexture("metallicTexture", self._stage, self._usd_material._usd_material, metallic_roughness_texture, [self._st0, self._st1])
+            if self._scale_texture:
+                scale_texture = scale_factor
+                usd_uv_texture._scale.Set(tuple([1.0]*4))
+            else:
+                usd_uv_texture._scale.Set(scale_factor)
+            destination = metallic_roughness_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.B, "metallic", scale_texture)
+            
             usd_uv_texture._file_asset.Set(destination)
-            usd_uv_texture._scale.Set(scale_factor)
             usd_uv_texture._fallback.Set(scale_factor)
             texture_shader = usd_uv_texture.get_shader()
             texture_shader.CreateOutput('r', Sdf.ValueTypeNames.Float)
@@ -269,25 +271,24 @@ class USDPreviewSurface():
     def _set_pbr_roughness(self, pbr_metallic_roughness):
         metallic_roughness_texture = pbr_metallic_roughness.get_metallic_roughness_texture()
         roughness_factor = pbr_metallic_roughness.get_roughness_factor()
-        if not metallic_roughness_texture:
+        if not metallic_roughness_texture or roughness_factor == 0:
             self._roughness.Set(roughness_factor)
         else:
-            destination = metallic_roughness_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.G, "roughness")
+            scale_texture = None
             scale_factor = tuple([roughness_factor]*4)
             usd_uv_texture = USDUVTexture("roughnessTexture", self._stage, self._usd_material._usd_material, metallic_roughness_texture, [self._st0, self._st1])
+            if self._scale_texture:
+                scale_texture = scale_factor
+                usd_uv_texture._scale.Set(tuple([1.0]*4))
+            else:
+                usd_uv_texture._scale.Set(scale_factor)
+
+            destination = metallic_roughness_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.G, "roughness", scale_texture)
             usd_uv_texture._file_asset.Set(destination)
-            usd_uv_texture._scale.Set(scale_factor)
             usd_uv_texture._fallback.Set(scale_factor)
             texture_shader = usd_uv_texture.get_shader()
             texture_shader.CreateOutput('r', Sdf.ValueTypeNames.Float)
             self._roughness.ConnectToSource(texture_shader, 'r')
-
-
-
-
-
-        
-
 
     def export_to_stage(self, usd_material):
         """Converts a glTF material to a usd preview surface
@@ -304,7 +305,7 @@ class USDPreviewSurface():
         usd_material._usd_material_displacement_output.ConnectToSource(displacement_output)
 
 
-class USDPrimvarReaderFloat2():
+class USDPrimvarReaderFloat2(object):
     def __init__(self, stage, material_path, var_name):
         primvar = UsdShade.Shader.Define(stage, material_path.AppendChild('primvar_{}'.format(var_name)))
         primvar.CreateIdAttr('UsdPrimvarReader_float2')
