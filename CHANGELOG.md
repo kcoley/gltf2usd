@@ -133,3 +133,4 @@
 - Added creator metadata
 - Moved material scope to below root xform
 - connect opacity of diffuse texture if alpha blend or mask is used
+- Export extras data on nodes and glTF asset 
