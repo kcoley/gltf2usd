@@ -124,7 +124,7 @@
 **Fixed Bugs:**
 - Fixed a bug where `TEXCOORD_1` attribute was not being read (https://github.com/kcoley/gltf2usd/issues/149)
 
-## 0.1.24 (2019-02-27)
+## 0.2.0 (2019-02-27)
 **Fixed Bugs:**
 - Fix blend shapes
 **Changes:**

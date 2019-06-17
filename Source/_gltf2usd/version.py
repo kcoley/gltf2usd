@@ -2,8 +2,8 @@ class Version(object):
     """Version API for gltf2usd
     """
     _major = 0
-    _minor = 1
-    _patch = 24
+    _minor = 2
+    _patch = 0
     @staticmethod
     def get_major_version_number():
         """Returns the major version
