@@ -40,8 +40,10 @@ class USDPreviewSurface(object):
         material_path = usd_material._usd_material.GetPath()
         material = UsdShade.Shader.Define(self._stage, material_path.AppendChild(material_name))
         material.CreateIdAttr('UsdPreviewSurface')
+        self._shader = material
         self._initialize_material(material, self)
         self._initialize_from_gltf_material(gltf_material)
+        
 
     def _initialize_material(self, material, usd_preview_surface_material):
         shader = material
@@ -220,11 +222,12 @@ class USDPreviewSurface(object):
         if AlphaMode(alpha_mode) != AlphaMode.OPAQUE:
             if AlphaMode(alpha_mode) == AlphaMode.MASK:
                 print('Alpha Mask not supported in USDPreviewSurface!  Using Alpha Blend...')
-
-            self._opacity.Set(base_color_scale[3])
+                
 
         if not base_color_texture:
             self._diffuse_color.Set(tuple(base_color_scale[0:3]))
+            if AlphaMode(alpha_mode) != AlphaMode.OPAQUE:
+                self._opacity.Set(base_color_scale[3])
         else:
             if AlphaMode(alpha_mode) == AlphaMode.OPAQUE:
                 destination = base_color_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.RGB)
@@ -240,7 +243,8 @@ class USDPreviewSurface(object):
             texture_shader.CreateOutput('rgb', Sdf.ValueTypeNames.Float3)
             texture_shader.CreateOutput('a', Sdf.ValueTypeNames.Float)
             self._diffuse_color.ConnectToSource(texture_shader, 'rgb')
-            self._opacity.ConnectToSource(texture_shader, 'a')
+            if AlphaMode(alpha_mode) != AlphaMode.OPAQUE:
+                self._opacity.ConnectToSource(texture_shader, 'a')
 
     def _set_pbr_metallic(self, pbr_metallic_roughness):
         metallic_roughness_texture = pbr_metallic_roughness.get_metallic_roughness_texture()
