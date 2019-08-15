@@ -92,9 +92,9 @@ class AnimationSampler(object):
             one_minus_factor = 1 - factor
             #translation or scale interpolation
             return [
-                (factor * value0[0] + (one_minus_factor * value1[0])), 
-                (factor * value0[1] + (one_minus_factor * value1[1])), 
-                (factor * value0[2] + (one_minus_factor * value1[2]))
+                (factor * value1[0] + (one_minus_factor * value0[0])),
+                (factor * value1[1] + (one_minus_factor * value0[1])),
+                (factor * value1[2] + (one_minus_factor * value0[2]))
             ]
 
         elif len(value0) == 4:
