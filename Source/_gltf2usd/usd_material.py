@@ -71,6 +71,7 @@ class USDPreviewSurface(object):
         self._clearcoat_roughness.Set(0.01)
 
         self._opacity = material.CreateInput('opacity', Sdf.ValueTypeNames.Float)
+        self._opacity.Set(1.0)
 
         self._ior = material.CreateInput('ior', Sdf.ValueTypeNames.Float)
         self._ior.Set(1.5)
