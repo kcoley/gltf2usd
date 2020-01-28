@@ -73,6 +73,9 @@ class USDPreviewSurface(object):
         self._opacity = material.CreateInput('opacity', Sdf.ValueTypeNames.Float)
         self._opacity.Set(1.0)
 
+        self._opacityThreshold = material.CreateInput('opacityThreshold', Sdf.ValueTypeNames.Float)
+        self._opacityThreshold.Set(0)
+
         self._ior = material.CreateInput('ior', Sdf.ValueTypeNames.Float)
         self._ior.Set(1.5)
 
@@ -147,7 +150,7 @@ class USDPreviewSurface(object):
     def _set_pbr_metallic_roughness(self, gltf_material):
         pbr_metallic_roughness = gltf_material.get_pbr_metallic_roughness()
         if (pbr_metallic_roughness):
-            self._set_pbr_base_color(pbr_metallic_roughness, gltf_material.alpha_mode)
+            self._set_pbr_base_color(pbr_metallic_roughness, gltf_material.alpha_mode, gltf_material.alpha_cutoff())
             self._set_pbr_metallic(pbr_metallic_roughness)
             self._set_pbr_roughness(pbr_metallic_roughness)
 
@@ -217,7 +220,7 @@ class USDPreviewSurface(object):
 
             
 
-    def _set_pbr_base_color(self, pbr_metallic_roughness, alpha_mode):
+    def _set_pbr_base_color(self, pbr_metallic_roughness, alpha_mode, alpha_cutoff):
         base_color_texture = pbr_metallic_roughness.get_base_color_texture()
         base_color_scale = pbr_metallic_roughness.get_base_color_factor()
         if AlphaMode(alpha_mode) != AlphaMode.OPAQUE:
@@ -244,8 +247,14 @@ class USDPreviewSurface(object):
             texture_shader.CreateOutput('rgb', Sdf.ValueTypeNames.Float3)
             texture_shader.CreateOutput('a', Sdf.ValueTypeNames.Float)
             self._diffuse_color.ConnectToSource(texture_shader, 'rgb')
-            if AlphaMode(alpha_mode) != AlphaMode.OPAQUE:
+
+            if AlphaMode(alpha_mode) == AlphaMode.BLEND:
                 self._opacity.ConnectToSource(texture_shader, 'a')
+
+            if AlphaMode(alpha_mode) == AlphaMode.MASK:
+                self._opacity.ConnectToSource(texture_shader, 'a')
+                self._opacityThreshold.Set(alpha_cutoff)
+                #self._opacity.Set(1.0)
 
     def _set_pbr_metallic(self, pbr_metallic_roughness):
         metallic_roughness_texture = pbr_metallic_roughness.get_metallic_roughness_texture()
