@@ -244,35 +244,31 @@ class USDPreviewSurface(object):
             texture_shader.CreateOutput('a', Sdf.ValueTypeNames.Float)
             self._diffuse_color.ConnectToSource(texture_shader, 'rgb')
 
-		#determine opacity and opacity threshold for the material
-		self._set_opacity_and_opacityThreshold(base_color_scale, alph_mode, alpha_cutoff)           
+            # check to make sure we have the "a" from texture channel
+            # if not we defalut to 1
+            defaultAlpha = 1
+            if len(base_color_scale) >= 3:
+                defaultAlpha = base_color_scale[3]
+                
+            if AlphaMode(alpha_mode) == AlphaMode.BLEND:
+                print("Blend mode detected!")
+                self._opacity.Set(defaultAlpha)
 
-    def _set_opacity_and_opacityThreshold(self, base_color_scale, alph_mode, alpha_cutoff)
-	
-		defaultAlpha = 1
-		
-		if len(base_color_scale) >= 3:
-			defaultAlpha = base_color_scale[3]
-			
-		if AlphaMode(alpha_mode) == AlphaMode.BLEND:
-			print("Blend mode detected!")
-			self._opacity.Set(defaultAlpha)
+            if AlphaMode(alpha_mode) == AlphaMode.MASK:
+                print("Mask mode detected defaulting to blend mode.")
 
-        if AlphaMode(alpha_mode) == AlphaMode.MASK:
-			print("Mask mode detected defaulting to blend mode.")
+                # this is where we decide whether to force opacity to be straight float value
+                # or use alpha channel from diffuse texture
+                if alpha_cutoff < 0.5:
+                    # this will use the alpha channel of diffuse texture
+                    self._opacity.Set(0.5)
+                else:
+                    # this will force straight float value and not use alpha channel of diffuse texture
+                    self._opacity.Set(defaultAlpha)
 
-			# this is where we decide whether to force opacity to be straight float value
-			# or use alpha channel from diffuse texture
-			if alpha_cutoff < 0.5:
-				# this will use the alpha channel of diffuse texture
-				self._opacity.Set(0.5)
-			else:
-				# this will force straight float value and not use alpha channel of diffuse texture
-				self._opacity.Set(defaultAlpha)
+                self._opacityThreshold.Set(alpha_cutoff)
+   
 
-			self._opacityThreshold.Set(alpha_cutoff)
-			
-			
     def _set_pbr_metallic(self, pbr_metallic_roughness):
         metallic_roughness_texture = pbr_metallic_roughness.get_metallic_roughness_texture()
         metallic_factor = pbr_metallic_roughness.get_metallic_factor()
