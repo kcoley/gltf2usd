@@ -223,11 +223,7 @@ class USDPreviewSurface(object):
     def _set_pbr_base_color(self, pbr_metallic_roughness, alpha_mode, alpha_cutoff):
         base_color_texture = pbr_metallic_roughness.get_base_color_texture()
         base_color_scale = pbr_metallic_roughness.get_base_color_factor()
-        if AlphaMode(alpha_mode) != AlphaMode.OPAQUE:
-            if AlphaMode(alpha_mode) == AlphaMode.MASK:
-                print('Alpha Mask not supported in USDPreviewSurface!  Using Alpha Blend...')
-                
-
+            
         if not base_color_texture:
             self._diffuse_color.Set(tuple(base_color_scale[0:3]))
             if AlphaMode(alpha_mode) != AlphaMode.OPAQUE:
@@ -239,6 +235,7 @@ class USDPreviewSurface(object):
             else:
                 destination = base_color_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.RGBA)
                 scale_factor = tuple(base_color_scale[0:4])
+
             usd_uv_texture = USDUVTexture("baseColorTexture", self._stage, self._usd_material._usd_material, base_color_texture, [self._st0, self._st1])
             usd_uv_texture._file_asset.Set(destination)
             usd_uv_texture._scale.Set(scale_factor)
@@ -249,13 +246,24 @@ class USDPreviewSurface(object):
             self._diffuse_color.ConnectToSource(texture_shader, 'rgb')
 
             if AlphaMode(alpha_mode) == AlphaMode.BLEND:
-                self._opacity.ConnectToSource(texture_shader, 'a')
+                print("Blend mode detected!")
+                self._opacity.Set(base_color_scale[3])
 
             if AlphaMode(alpha_mode) == AlphaMode.MASK:
-                self._opacity.ConnectToSource(texture_shader, 'a')
-                self._opacityThreshold.Set(alpha_cutoff)
-                #self._opacity.Set(1.0)
+                print("Mask mode detected defaulting to blend mode.")
 
+                # this is where we decide whether to force opacity to be straight float value
+                # or use alpha channel from diffuse texture
+                if alpha_cutoff < 0.5:
+                    # this will use the alpha channel of diffuse texture
+                    self._opacity.Set(0.5)
+                else:
+                    # this will force straight float value and not use alpha channel of diffuse texture
+                    self._opacity.Set(base_color_scale[3])
+
+                self._opacityThreshold.Set(alpha_cutoff)
+
+            
     def _set_pbr_metallic(self, pbr_metallic_roughness):
         metallic_roughness_texture = pbr_metallic_roughness.get_metallic_roughness_texture()
         metallic_factor = pbr_metallic_roughness.get_metallic_factor()
