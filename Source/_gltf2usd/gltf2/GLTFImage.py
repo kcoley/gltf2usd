@@ -63,12 +63,22 @@ class GLTFImage(object):
         destination = os.path.join(output_dir, file_name)
         original_img = Image.open(self._image_path)
         img = original_img
-        if img.mode == 'P':
+
+        # img.mode P means palettised which implies that only 1byte of colormap is used to represent 256 colors
+        # We ran into several assets with diffuse map that are designated grayscale that only requires two texture channels
+        # and when you split each channels, the img_channels array only has 2 channels but when you are trying to merge
+        # all channels for temporary output, it tries to merge 3 channels.
+        # In order to avoid this error, we need to cover for img mode L and LA and convert them to RGBA 
+        if img.mode == 'P' or img.mode == "LA" or img.mode == "L":
             img = img.convert('RGBA')
+
+        # now image channels should have 3 or channels    
         img_channels = img.split()
+        
         if len(img_channels) == 1: #distribute grayscale image across rgb
             img = Image.merge('RGB', (img_channels[0], img_channels[0], img_channels[0]))
             img_channels = img.split()
+        
         if channels == ImageColorChannels.RGB:
             if img.mode == "RGBA": #Make a copy and add opaque 
                 file_name = '{0}_{1}'.format('RGB', file_name)
@@ -80,7 +90,6 @@ class GLTFImage(object):
         elif channels == ImageColorChannels.R or channels == ImageColorChannels.G or channels == ImageColorChannels.B or channels == ImageColorChannels.A:
             if img.mode != 'L':
                 img = img.getchannel(channels.value)
-
         else:
             raise Exception('Unsupported image channel format {}'.format(channels))
 
