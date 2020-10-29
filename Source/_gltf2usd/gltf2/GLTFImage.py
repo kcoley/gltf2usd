@@ -69,7 +69,7 @@ class GLTFImage(object):
         # and when you split each channels, the img_channels array only has 2 channels but when you are trying to merge
         # all channels for temporary output, it tries to merge 3 channels.
         # In order to avoid this error, we need to cover for img mode L and LA and convert them to RGBA 
-        if img.mode == 'P' or img.mode == "LA" or img.mode == "L":
+        if img.mode == 'P' or img.mode == 'LA' or img.mode == 'L':
             img = img.convert('RGBA')
 
         # now image channels should have 3 or channels    
