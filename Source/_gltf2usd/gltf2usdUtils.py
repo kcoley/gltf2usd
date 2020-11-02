@@ -13,8 +13,8 @@ class GLTF2USDUtils(object):
         Returns:
             str -- USD friendly name
         """
-        name = re.sub(r'\.|\b \b|-\b|:|\(|\)|[ \t]|-|\[|\]|\{|\}|#', '_', name) # replace '.',' ','-',':','/','\','(',')', '{', '}', '#' and ':' with '_'
-        name = re.sub(r'^([\d]+)',r'm\1',name)
+        name = re.sub(r'[^\w]', '_', name) # replace any non-word characters with '_'
+        name = re.sub(r'^([\d]+)',r'name_\1',name) #prepend with "name_" if string starts with digit 
         name = re.sub('//', '/', name)
         if name.isdigit(): #if only digits, prepend a string
             name = 'name_{}'.format(name)
