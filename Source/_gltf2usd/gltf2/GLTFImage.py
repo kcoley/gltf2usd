@@ -63,13 +63,20 @@ class GLTFImage(object):
         destination = os.path.join(output_dir, file_name)
         original_img = Image.open(self._image_path)
         img = original_img
+        
+        # this is helpful debug information
+        debugTxt = "===> IMG INFO: {0} -> {1}".format(self._name, img.mode)
+        print (debugTxt)
 
         # img.mode P means palettised which implies that only 1byte of colormap is used to represent 256 colors
         # We ran into several assets with diffuse map that are designated grayscale that only requires two texture channels
         # and when you split each channels, the img_channels array only has 2 channels but when you are trying to merge
         # all channels for temporary output, it tries to merge 3 channels.
         # In order to avoid this error, we need to cover for img mode L and LA and convert them to RGBA 
-        if img.mode == 'P' or img.mode == 'LA' or img.mode == 'L':
+
+        # 1/14/2021 - Looks like we found an asset with image mode "I"... adding this here... it is form of
+        # grayscale... but something new that was not enountered before
+        if img.mode == 'P' or img.mode == 'LA' or img.mode == 'L' or img.mode == "I":
             img = img.convert('RGBA')
 
         # now image channels should have 3 or channels    
