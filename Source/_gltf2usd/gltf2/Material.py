@@ -147,6 +147,7 @@ class Material:
         self._pbr_metallic_roughness = PbrMetallicRoughness(material_entry['pbrMetallicRoughness'], gltf_loader) if ('pbrMetallicRoughness' in material_entry) else None
 
         self._alpha_mode = material_entry['alphaMode'] if ('alphaMode' in material_entry) else AlphaMode.OPAQUE
+        self._alpha_cutoff = material_entry ['alphaCutoff'] if ('alphaCutoff' in material_entry) else 0.5
 
         self._normal_texture = NormalTexture(material_entry['normalTexture'], gltf_loader) if ('normalTexture' in material_entry) else None
         self._emissive_factor = material_entry['emissiveFactor'] if ('emissiveFactor' in material_entry) else [0,0,0]
@@ -187,3 +188,6 @@ class Material:
 
     def get_emissive_factor(self):
         return self._emissive_factor
+
+    def alpha_cutoff(self):
+        return self._alpha_cutoff

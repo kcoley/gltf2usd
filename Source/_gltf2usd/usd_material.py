@@ -71,6 +71,10 @@ class USDPreviewSurface(object):
         self._clearcoat_roughness.Set(0.01)
 
         self._opacity = material.CreateInput('opacity', Sdf.ValueTypeNames.Float)
+        self._opacity.Set(1.0)
+
+        self._opacityThreshold = material.CreateInput('opacityThreshold', Sdf.ValueTypeNames.Float)
+        self._opacityThreshold.Set(0)
 
         self._ior = material.CreateInput('ior', Sdf.ValueTypeNames.Float)
         self._ior.Set(1.5)
@@ -146,7 +150,7 @@ class USDPreviewSurface(object):
     def _set_pbr_metallic_roughness(self, gltf_material):
         pbr_metallic_roughness = gltf_material.get_pbr_metallic_roughness()
         if (pbr_metallic_roughness):
-            self._set_pbr_base_color(pbr_metallic_roughness, gltf_material.alpha_mode)
+            self._set_pbr_base_color(pbr_metallic_roughness, gltf_material.alpha_mode, gltf_material.alpha_cutoff())
             self._set_pbr_metallic(pbr_metallic_roughness)
             self._set_pbr_roughness(pbr_metallic_roughness)
 
@@ -214,27 +218,28 @@ class USDPreviewSurface(object):
             texture_shader.CreateOutput('r', Sdf.ValueTypeNames.Float)
             self._roughness.ConnectToSource(texture_shader, 'r')
 
-            
 
-    def _set_pbr_base_color(self, pbr_metallic_roughness, alpha_mode):
+    def _set_pbr_base_color(self, pbr_metallic_roughness, alpha_mode, alpha_cutoff):
         base_color_texture = pbr_metallic_roughness.get_base_color_texture()
         base_color_scale = pbr_metallic_roughness.get_base_color_factor()
-        if AlphaMode(alpha_mode) != AlphaMode.OPAQUE:
-            if AlphaMode(alpha_mode) == AlphaMode.MASK:
-                print('Alpha Mask not supported in USDPreviewSurface!  Using Alpha Blend...')
-                
-
+            
         if not base_color_texture:
             self._diffuse_color.Set(tuple(base_color_scale[0:3]))
             if AlphaMode(alpha_mode) != AlphaMode.OPAQUE:
                 self._opacity.Set(base_color_scale[3])
         else:
+
+            defaultAlpha = 1
+            if len(base_color_scale) >= 3:
+                defaultAlpha = base_color_scale[3]
+
             if AlphaMode(alpha_mode) == AlphaMode.OPAQUE:
                 destination = base_color_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.RGB)
                 scale_factor = (base_color_scale[0], base_color_scale[1], base_color_scale[2], base_color_scale[3])
             else:
                 destination = base_color_texture.write_to_directory(self._output_directory, GLTFImage.ImageColorChannels.RGBA)
                 scale_factor = tuple(base_color_scale[0:4])
+
             usd_uv_texture = USDUVTexture("baseColorTexture", self._stage, self._usd_material._usd_material, base_color_texture, [self._st0, self._st1])
             usd_uv_texture._file_asset.Set(destination)
             usd_uv_texture._scale.Set(scale_factor)
@@ -243,8 +248,23 @@ class USDPreviewSurface(object):
             texture_shader.CreateOutput('rgb', Sdf.ValueTypeNames.Float3)
             texture_shader.CreateOutput('a', Sdf.ValueTypeNames.Float)
             self._diffuse_color.ConnectToSource(texture_shader, 'rgb')
-            if AlphaMode(alpha_mode) != AlphaMode.OPAQUE:
+
+            # set opacity and opacity threshold
+            if AlphaMode(alpha_mode) == AlphaMode.OPAQUE:
+                print("Opaque mode detected!")
+                self._opacity.Set(1)
+
+            if AlphaMode(alpha_mode) == AlphaMode.BLEND:
+                print("Blend mode detected!")
                 self._opacity.ConnectToSource(texture_shader, 'a')
+                self._opacity.Set(defaultAlpha)
+
+            if AlphaMode(alpha_mode) == AlphaMode.MASK:
+                print("Mask mode detected defaulting to blend mode.")
+                self._opacity.ConnectToSource(texture_shader, 'a')
+                self._opacity.Set(defaultAlpha)
+
+                self._opacityThreshold.Set(alpha_cutoff)
 
     def _set_pbr_metallic(self, pbr_metallic_roughness):
         metallic_roughness_texture = pbr_metallic_roughness.get_metallic_roughness_texture()
